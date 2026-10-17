@@ -1363,7 +1363,7 @@ body::before {
           </div>
           <div class="odd-card odd-random">
             <div class="odd-top">
-              <span class="odd-name">🖼️ Random</span>
+              <span class="odd-name">😂 Meme</span>
               <b class="odd-pct">40%</b>
             </div>
             <div class="odd-bar"><div class="odd-fill"></div></div>
@@ -1619,6 +1619,65 @@ async function dropClaw() {
   disable(false);
 }
 
+function memeFallbackDataUri() {
+  const lines = [
+    ["WHEN API MEME LAGI ERROR", "TAPI GACHA TETAP JALAN 😭"],
+    ["PLAYER: CUMA SEKALI", "JUGA PLAYER: DROP LAGI 😂"],
+    ["40% MEME DROP", "100% CHAOS"],
+    ["NIATNYA DAPAT JACKPOT", "MALAH DAPAT MEME 💀"]
+  ];
+  const pick = lines[Math.floor(Math.random() * lines.length)];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18181b"/><stop offset="1" stop-color="#3f3f46"/></linearGradient></defs>
+    <rect width="800" height="600" fill="url(#g)"/>
+    <text x="400" y="95" text-anchor="middle" fill="white" font-size="42" font-family="Arial, sans-serif" font-weight="900" stroke="#000" stroke-width="7" paint-order="stroke">${pick[0]}</text>
+    <text x="400" y="325" text-anchor="middle" font-size="150">😂</text>
+    <text x="400" y="535" text-anchor="middle" fill="white" font-size="42" font-family="Arial, sans-serif" font-weight="900" stroke="#000" stroke-width="7" paint-order="stroke">${pick[1]}</text>
+  </svg>`;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
+async function attachRandomMeme(data) {
+  const subreddits = ["memes", "wholesomememes", "me_irl"];
+  const shuffled = subreddits.sort(() => Math.random() - 0.5);
+
+  for (const subreddit of shuffled) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2200);
+    try {
+      const res = await fetch(`https://meme-api.com/gimme/${subreddit}`, {
+        headers: { "accept": "application/json" },
+        signal: controller.signal
+      });
+      if (!res.ok) continue;
+      const meme = await res.json();
+      if (!meme || meme.nsfw || meme.spoiler) continue;
+
+      const previews = Array.isArray(meme.preview) ? meme.preview : [];
+      const image = previews[previews.length - 1] || meme.url;
+      if (!image) continue;
+
+      data.image = image;
+      data.title = meme.title || "Random Meme";
+      data.artist = [meme.subreddit ? `r/${meme.subreddit}` : "", meme.author ? `u/${meme.author}` : ""]
+        .filter(Boolean)
+        .join(" • ");
+      data.memePost = meme.postLink || "";
+      return data;
+    } catch (_) {
+      // Coba subreddit berikutnya.
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Jangan kembali ke gambar random backend (mis. pemandangan).
+  data.image = memeFallbackDataUri();
+  data.title = "Bonus Meme 😂";
+  data.artist = "Gacha Claw fallback";
+  return data;
+}
+
 async function finishCatch(t) {
   toys = toys.filter(v => v.id !== t.id);
   t.el.style.left = "14px";
@@ -1640,6 +1699,7 @@ async function finishCatch(t) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Roll gagal");
+    if (data.type === "random") await attachRandomMeme(data);
     showReward(data);
     addHistory(data);
   } catch (err) {
@@ -1752,18 +1812,18 @@ function showReward(r) {
       <h2>${esc(r.title || "Anime Girl")}</h2>
       <div class="reward-img-wrap">
         <img src="${esc(r.image)}" alt="${esc(r.title || "Waifu Reward")}" loading="lazy" referrerpolicy="no-referrer"
-          onerror="this.outerHTML='<div class=\\'img-fallback\\'>💖 Preview gambar offline — hadiah Waifu berhasil diklaim!</div>'" />
+          onerror="this.outerHTML='<div class=\'img-fallback\'>💖 Preview gambar offline — hadiah Waifu berhasil diklaim!</div>'" />
       </div>
       ${r.artist ? `<p>Artist: <b>${esc(r.artist)}</b></p>` : ""}
     `;
   } else if (r.image) {
     headerLabel = "YOU GOT!";
-    badges = `<span class="tier badge-random">🖼️ RANDOM • ${esc(r.tier || "40%")}</span>`;
+    badges = `<span class="tier badge-random">😂 MEME • ${esc(r.tier || "40%")}</span>`;
     body = `
-      <h2>${esc(r.title || "Random Image")}</h2>
+      <h2>${esc(r.title || "Random Meme")}</h2>
       <div class="reward-img-wrap">
-        <img src="${esc(r.image)}" alt="${esc(r.title || "Reward")}" loading="lazy" referrerpolicy="no-referrer"
-          onerror="this.outerHTML='<div class=\\'img-fallback\\'>🖼️ Preview gambar offline — hadiah Random berhasil diklaim!</div>'" />
+        <img src="${esc(r.image)}" alt="${esc(r.title || "Meme Reward")}" loading="lazy" referrerpolicy="no-referrer"
+          onerror="this.outerHTML='<div class=\'img-fallback\'>😂 Meme gagal dimuat — tapi tier Meme berhasil diklaim!</div>'" />
       </div>
       ${r.artist ? `<p>Artist: <b>${esc(r.artist)}</b></p>` : ""}
     `;
@@ -1799,7 +1859,7 @@ function addHistory(r) {
   c.className = "chip " + typeClass;
   const icon = ({
     zonk: "💩",
-    random: "🖼️",
+    random: "😂",
     waifu: "💖",
     account: "👑",
     "account-empty": "🎟️"
