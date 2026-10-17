@@ -1,0 +1,1891 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover" />
+<meta name="theme-color" content="#35c9d9" />
+<title>Gacha Claw — Lucky Catch Arcade</title>
+<style>
+:root {
+  --ink: #472415;
+  --ink-soft: #6e422d;
+  --cyan: #35c9d9;
+  --cyan-light: #7be8f2;
+  --cyan-dark: #1f9bb0;
+  --blue: #2780a8;
+  --cream: #fff9e6;
+  --cream-warm: #f7e6c4;
+  --card-bg: #fffdf7;
+  --gold-top: #ffef7a;
+  --gold-mid: #ffca28;
+  --gold-bot: #f09c00;
+  --pink: #ff6ca8;
+  --purple: #b56cff;
+  --shadow-hard: #472415;
+  --shadow-soft: rgba(71, 36, 21, 0.16);
+  --radius-xl: 26px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  font-family: "Fredoka", "Nunito", ui-rounded, "SF Pro Rounded", "Trebuchet MS", system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.7) 0%, transparent 38%),
+    radial-gradient(circle at 85% 85%, rgba(255, 216, 117, 0.35) 0%, transparent 42%),
+    linear-gradient(165deg, #c9f9ff 0%, #8be6f0 45%, #58ccd9 100%);
+  background-attachment: fixed;
+}
+
+/* Subtle arcade dot-grid backdrop */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.35) 1.5px, transparent 1.5px),
+    linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px, 40px 40px, 40px 40px;
+  background-position: 0 0, 0 0, 0 0;
+  z-index: 0;
+}
+
+/* Main Mobile-First Game Shell (360px - 430px target, centered on desktop) */
+.app {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding:
+    max(10px, env(safe-area-inset-top, 10px))
+    12px
+    max(20px, env(safe-area-inset-bottom, 20px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 1. STICKY / COMPACT HEADER */
+.topbar {
+  position: sticky;
+  top: max(6px, env(safe-area-inset-top, 6px));
+  z-index: 40;
+  min-height: 58px;
+  padding: 8px 12px;
+  background: rgba(255, 252, 242, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 3.5px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 0 5px 0 var(--ink), 0 8px 18px var(--shadow-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.brand-icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #64ecfa 0%, #26b9cc 100%);
+  border: 3px solid var(--ink);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.65), 0 2px 0 var(--ink);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.brand-sub {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--cyan-dark);
+}
+
+.brand {
+  font-weight: 900;
+  font-size: clamp(18px, 4.8vw, 22px);
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  text-shadow: 0 2px 0 #fff;
+  white-space: nowrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(180deg, #fff6cc 0%, #ffdf6b 100%);
+  border: 3px solid var(--ink);
+  box-shadow: 0 3px 0 var(--ink);
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pill-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.pill-label {
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  opacity: 0.85;
+}
+
+.pill-count {
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+/* 2. SMALL STATUS / INSTRUCTION BAR */
+.status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  padding: 6px 14px;
+  box-shadow: 0 3px 0 rgba(71, 36, 21, 0.14);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--ink);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  flex-shrink: 0;
+}
+
+/* 3. LAYOUT & CLAW MACHINE CABINET */
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.machine {
+  position: relative;
+  border: 4.5px solid var(--ink);
+  border-radius: 26px 26px 22px 22px;
+  background: linear-gradient(180deg, #5ce3f2 0%, #31c4d6 48%, #24abc0 100%);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.65),
+    0 8px 0 var(--ink),
+    0 14px 26px rgba(45, 24, 14, 0.22);
+  overflow: hidden;
+  animation: machineEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes machineEnter {
+  from {
+    transform: translateY(10px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Machine Header Marquee: LUCKY CATCH */
+.header {
+  position: relative;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(180deg, #3fd4e5 0%, #229fb5 100%);
+  border-bottom: 4px solid var(--ink);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  padding: 0 14px;
+}
+
+.header-badge {
+  background: linear-gradient(180deg, #fff9db 0%, #ffd954 100%);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  padding: 3px 16px;
+  box-shadow: 0 3px 0 var(--ink);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
+  text-shadow: 0 1px 0 #fff;
+}
+
+.marquee-lights {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.bulb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff6b3;
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 6px #ffe66d;
+  animation: bulbPulse 1.6s infinite alternate;
+}
+
+.bulb:nth-child(2) {
+  animation-delay: 0.4s;
+  background: #ffd1e6;
+}
+
+.bulb:nth-child(3) {
+  animation-delay: 0.8s;
+  background: #b8f7ff;
+}
+
+@keyframes bulbPulse {
+  from { opacity: 0.65; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1.08); }
+}
+
+/* Machine Glass Viewport */
+.window {
+  position: relative;
+  height: clamp(256px, 37vh, 288px);
+  margin: 10px 10px 0;
+  border-radius: 16px 16px 12px 12px;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.85) 0%, rgba(214, 250, 255, 0.4) 52%, transparent 75%),
+    linear-gradient(
+      180deg,
+      #dffbff 0%,
+      #bef3fa 57%,
+      #f5dec0 57.5%,
+      #fcedd4 65%,
+      #e6c391 100%
+    );
+  border: 4px solid var(--ink);
+  box-shadow:
+    inset 0 6px 14px rgba(31, 128, 156, 0.16),
+    inset 0 -8px 14px rgba(110, 68, 35, 0.15);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Subtle background decorative silhouettes inside cabinet for depth */
+.window-bg-decor {
+  position: absolute;
+  inset: 0 0 42% 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 18% 35%, rgba(255, 255, 255, 0.6) 0 4px, transparent 5px),
+    radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.6) 0 5px, transparent 6px),
+    radial-gradient(circle at 72% 65%, rgba(255, 255, 255, 0.5) 0 3.5px, transparent 4.5px),
+    radial-gradient(circle at 28% 72%, rgba(255, 255, 255, 0.5) 0 4px, transparent 5px);
+  z-index: 1;
+}
+
+/* Plush prize bed divider ridge */
+.window::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 57%;
+  height: 6px;
+  background: linear-gradient(90deg, #d9b382, #f2d6ae 50%, #d9b382);
+  border-top: 2px solid rgba(71, 36, 21, 0.35);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.55);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Glass reflection streak */
+.window::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(255, 255, 255, 0.16) 16%,
+      transparent 16.5% 75%,
+      rgba(255, 255, 255, 0.22) 75.5%,
+      rgba(255, 255, 255, 0.06) 86%,
+      transparent 86.5%
+    );
+  pointer-events: none;
+  z-index: 25;
+}
+
+/* Top Rail & Metallic Gantry */
+.rail {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 14px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #d5eef5 55%, #9acbd9 100%);
+  border: 3px solid var(--ink);
+  box-shadow: 0 3px 0 rgba(71, 36, 21, 0.16);
+  z-index: 12;
+}
+
+.gantry {
+  position: absolute;
+  left: 52%;
+  top: 9px;
+  width: 36px;
+  height: 20px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffea79 0%, #f5b400 100%);
+  border: 3px solid var(--ink);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7), 0 2px 0 rgba(71, 36, 21, 0.25);
+  z-index: 14;
+  transform: translateX(-50%);
+  transition: left 0.13s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gantry::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  transform: translate(-50%, -50%);
+}
+
+.rope {
+  position: absolute;
+  left: 52%;
+  top: 25px;
+  width: 7px;
+  height: 34px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      #eef9fc 0 4px,
+      #b7d8e6 4px 8px
+    );
+  border-inline: 2px solid var(--ink);
+  transform: translateX(-50%);
+  transition: left 0.13s cubic-bezier(0.22, 1, 0.36, 1), height 0.5s cubic-bezier(0.34, 1.15, 0.64, 1);
+  z-index: 13;
+}
+
+/* Upgraded Metallic Claw with Open Pincers */
+.claw {
+  position: absolute;
+  left: 52%;
+  top: 52px;
+  width: 64px;
+  height: 48px;
+  transform: translateX(-50%);
+  transition: left 0.13s cubic-bezier(0.22, 1, 0.36, 1), top 0.5s cubic-bezier(0.34, 1.15, 0.64, 1);
+  z-index: 16;
+  filter: drop-shadow(0 4px 2px rgba(71, 36, 21, 0.22));
+}
+
+.claw.bounce {
+  animation: clawCatchBounce 0.32s ease;
+}
+
+@keyframes clawCatchBounce {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  45% { transform: translateX(-50%) scale(1.1, 0.92); }
+  75% { transform: translateX(-50%) scale(0.96, 1.05); }
+}
+
+.claw .hub {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 26px;
+  height: 16px;
+  transform: translateX(-50%);
+  border-radius: 9px 9px 6px 6px;
+  background: linear-gradient(180deg, #ffffff 0%, #cdeef7 55%, #8bc4d6 100%);
+  border: 3px solid var(--ink);
+  z-index: 2;
+}
+
+.claw .hub::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff6ca8;
+  border: 1.5px solid var(--ink);
+  transform: translate(-50%, -50%);
+}
+
+.finger {
+  position: absolute;
+  top: 9px;
+  width: 24px;
+  height: 32px;
+  border-top: 4px solid var(--ink);
+  border-bottom: 5.5px solid var(--ink);
+  transition: transform 0.24s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.finger.l {
+  left: 5px;
+  border-left: 5.5px solid var(--ink);
+  border-radius: 16px 0 0 20px;
+  transform: rotate(18deg);
+  transform-origin: top right;
+  box-shadow: inset 3px 2px 0 rgba(255, 255, 255, 0.85);
+}
+
+.finger.r {
+  right: 5px;
+  border-right: 5.5px solid var(--ink);
+  border-radius: 0 16px 20px 0;
+  transform: rotate(-18deg);
+  transform-origin: top left;
+  box-shadow: inset -3px 2px 0 rgba(255, 255, 255, 0.85);
+}
+
+.claw.closed .finger.l {
+  transform: rotate(-6deg);
+}
+
+.claw.closed .finger.r {
+  transform: rotate(6deg);
+}
+
+/* Upgraded Circular Capsules / Tokens */
+.toy {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 3.5px solid var(--ink);
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.92) 0 13%, transparent 14%),
+    linear-gradient(
+      180deg,
+      var(--cap-top, #8ef0fa) 0%,
+      var(--cap-top, #8ef0fa) 46%,
+      var(--ink) 46%,
+      var(--ink) 52%,
+      #fff9e6 52%,
+      #f5e4be 100%
+    );
+  box-shadow:
+    inset -3px -5px 0 rgba(71, 36, 21, 0.12),
+    inset 2px 3px 0 rgba(255, 255, 255, 0.7),
+    0 5px 0 rgba(71, 36, 21, 0.24);
+  display: grid;
+  place-items: center;
+  transform: rotate(var(--rot, 0deg)) scale(var(--depth-scale, 1));
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    left 0.35s ease,
+    top 0.52s cubic-bezier(0.34, 1.15, 0.64, 1),
+    opacity 0.28s ease;
+  z-index: var(--z-layer, 5);
+}
+
+.toy-inner {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 253, 245, 0.9);
+  border: 2px solid rgba(71, 36, 21, 0.22);
+  font-size: 21px;
+  line-height: 1;
+  animation: capsuleIdle 2.8s ease-in-out infinite alternate;
+  animation-delay: var(--float-delay, 0s);
+}
+
+@keyframes capsuleIdle {
+  0% { transform: translateY(0px) rotate(-1.5deg); }
+  100% { transform: translateY(-2.5px) rotate(1.5deg); }
+}
+
+.toy.grabbed {
+  z-index: 20 !important;
+  transform: rotate(0deg) scale(0.95);
+  box-shadow:
+    0 0 0 4px rgba(255, 230, 109, 0.65),
+    0 8px 14px rgba(71, 36, 21, 0.28);
+}
+
+/* Compact Prize Chute (Does not block capsules) */
+.chute {
+  position: absolute;
+  left: 8px;
+  bottom: 10px;
+  width: 58px;
+  height: 40px;
+  background: linear-gradient(180deg, #7c5239 0%, #52311f 100%);
+  border: 3.5px solid var(--ink);
+  border-radius: 11px 11px 6px 6px;
+  box-shadow: inset 0 5px 7px rgba(0, 0, 0, 0.38), 0 2px 0 rgba(255, 255, 255, 0.35);
+  color: #fff8df;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.chute::before {
+  content: "EXIT";
+  font-size: 7.5px;
+  color: #ffd954;
+  letter-spacing: 1px;
+  opacity: 0.95;
+}
+
+.floor-lip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 11px;
+  background: linear-gradient(180deg, #deb279 0%, #c49256 100%);
+  border-top: 3.5px solid var(--ink);
+  z-index: 7;
+}
+
+/* 4. ARCADE CONTROL DECK */
+.controls {
+  padding: 12px 12px 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(21, 114, 133, 0.22) 100%);
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.controller {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ctrl {
+  appearance: none;
+  border: 3.5px solid var(--ink);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #fff6df 65%, #f0dec0 100%);
+  color: var(--ink);
+  min-width: 60px;
+  min-height: 58px;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 900;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.9),
+    0 5px 0 var(--ink),
+    0 7px 12px rgba(71, 36, 21, 0.2);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+}
+
+.ctrl:hover:not(:disabled) {
+  filter: brightness(1.03);
+}
+
+.ctrl:active:not(:disabled),
+.ctrl.is-pressed:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 0 var(--ink),
+    0 3px 6px rgba(71, 36, 21, 0.15);
+}
+
+/* Primary CTA: DROP CLAW */
+.drop {
+  flex: 1;
+  background: linear-gradient(180deg, var(--gold-top) 0%, var(--gold-mid) 52%, var(--gold-bot) 100%);
+  color: var(--ink);
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 14px;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.85),
+    0 5px 0 var(--ink),
+    0 8px 16px rgba(240, 156, 0, 0.35);
+}
+
+.drop-main {
+  font-size: clamp(15px, 4.2vw, 18px);
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  line-height: 1.1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.drop-sub {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.55);
+  padding: 1px 8px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
+.ctrl:disabled {
+  filter: saturate(0.25) brightness(0.92);
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+/* 5. LOWER INFO PANELS (DROP RATE 2x2 GRID & RECENT PRIZES) */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel {
+  background: var(--card-bg);
+  border: 3.5px solid var(--ink);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  box-shadow: 0 5px 0 var(--ink), 0 8px 16px var(--shadow-soft);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.panel h2 {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+/* Compact 2x2 Drop Rate Grid */
+.odds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.odd-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  border-radius: 13px;
+  border: 2.5px solid var(--ink);
+  background: var(--cream);
+  box-shadow: 0 2px 0 rgba(71, 36, 21, 0.12);
+}
+
+.odd-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.odd-name {
+  font-size: 12.5px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.odd-mini-badge {
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+  text-transform: uppercase;
+}
+
+.odd-pct {
+  font-size: 12.5px;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid var(--ink);
+}
+
+.odd-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(71, 36, 21, 0.12);
+  overflow: hidden;
+}
+
+.odd-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* Specific Rarity Accents in 2x2 Grid */
+.odd-zonk .odd-fill { width: 40%; background: #9c7a65; }
+.odd-random { background: #eefcff; }
+.odd-random .odd-fill { width: 40%; background: var(--cyan); }
+
+.odd-waifu {
+  background: linear-gradient(135deg, #fff0f7 0%, #f7ebff 100%);
+  border-color: #6b2654;
+}
+.odd-waifu .odd-mini-badge {
+  background: #ffb8dc;
+  color: #59143f;
+}
+.odd-waifu .odd-pct {
+  background: #ffd6ec;
+  color: #6b1d4f;
+}
+.odd-waifu .odd-fill {
+  width: 15%;
+  background: linear-gradient(90deg, var(--pink), var(--purple));
+}
+
+.odd-account {
+  background: linear-gradient(135deg, #fff9db 0%, #ffdf6b 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 3px 0 var(--ink);
+}
+.odd-account .odd-mini-badge {
+  background: #fff;
+  color: #b86200;
+}
+.odd-account .odd-pct {
+  background: linear-gradient(180deg, #ffe875 0%, #ffb700 100%);
+}
+.odd-account .odd-fill {
+  width: 20%;
+  background: linear-gradient(90deg, #ff9900, #ffd000);
+}
+
+/* History / Recent Prizes */
+.history {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 32px;
+  align-items: center;
+}
+
+.empty-history {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  opacity: 0.85;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--cream);
+  box-shadow: 0 2px 0 rgba(71, 36, 21, 0.14);
+  font-size: 11.5px;
+  font-weight: 900;
+  animation: popIn 0.25s ease;
+}
+
+.chip.chip-waifu { background: #ffe6f3; }
+.chip.chip-account { background: #ffe885; }
+.chip.chip-random { background: #e3faff; }
+
+/* Compact Footer Row: Hint + Admin Link */
+.footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 0;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  opacity: 0.9;
+}
+
+.adminlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  color: var(--ink);
+  background: rgba(255, 253, 247, 0.85);
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 2px 0 var(--ink);
+  flex-shrink: 0;
+  transition: transform 0.1s ease;
+}
+
+.adminlink:active {
+  transform: translateY(2px);
+}
+
+/* 6. REWARD REVEAL MODAL */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(34, 18, 11, 0.76);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.reward {
+  position: relative;
+  width: min(92vw, 390px);
+  max-height: 88dvh;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border: 4.5px solid var(--ink);
+  border-radius: 26px;
+  padding: 20px 18px 18px;
+  text-align: center;
+  box-shadow: 0 12px 0 var(--ink), 0 20px 40px rgba(0, 0, 0, 0.4);
+  animation: rewardPop 0.34s cubic-bezier(0.22, 1.28, 0.36, 1);
+}
+
+@keyframes rewardPop {
+  from { transform: scale(0.76) translateY(16px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Rarity-specific modal styling */
+.reward.tier-zonk {
+  background: linear-gradient(180deg, #fffdf9 0%, #f5ebe1 100%);
+  animation: rewardPop 0.3s ease, zonkShake 0.48s ease 0.15s;
+}
+
+@keyframes zonkShake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-8px) rotate(-2.5deg); }
+  40% { transform: translateX(8px) rotate(2.5deg); }
+  60% { transform: translateX(-6px) rotate(-1.5deg); }
+  80% { transform: translateX(5px) rotate(1.5deg); }
+}
+
+.reward.tier-random {
+  background: radial-gradient(circle at 50% 0%, #d8f9ff 0%, #fffdf7 65%);
+  box-shadow: 0 0 28px rgba(53, 201, 217, 0.55), 0 12px 0 var(--ink);
+}
+
+.reward.tier-waifu {
+  background: radial-gradient(circle at 50% 0%, #ffd9ef 0%, #f6eaff 48%, #fffdf7 80%);
+  box-shadow: 0 0 34px rgba(255, 108, 168, 0.65), 0 12px 0 var(--ink);
+}
+
+.reward.tier-account {
+  background: radial-gradient(circle at 50% 0%, #fff3a1 0%, #ffdf6d 42%, #fffdf5 82%);
+  box-shadow: 0 0 42px rgba(255, 202, 40, 0.85), 0 12px 0 var(--ink);
+}
+
+.you-got {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.tier-badges {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: #ffdd57;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 3px 0 var(--ink);
+}
+
+.tier.badge-zonk { background: #e8d8c8; }
+.tier.badge-random { background: #7be8f2; }
+.tier.badge-waifu {
+  background: linear-gradient(90deg, #ff7eb6, #c98bff);
+  color: #fff;
+  text-shadow: 0 1px 0 var(--ink);
+}
+.tier.badge-account {
+  background: linear-gradient(180deg, #fff078 0%, #ffb300 100%);
+  color: var(--ink);
+}
+
+.reward h2 {
+  margin: 6px 0 6px;
+  font-size: clamp(21px, 5.5vw, 26px);
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.reward p {
+  margin: 6px 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.reward-img-wrap {
+  position: relative;
+  margin: 10px auto 12px;
+  border-radius: 18px;
+  border: 3.5px solid var(--ink);
+  background: var(--cream);
+  box-shadow: 0 5px 0 rgba(71, 36, 21, 0.16);
+  overflow: hidden;
+  max-height: 290px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reward img {
+  width: 100%;
+  max-height: 290px;
+  object-fit: cover;
+  display: block;
+  background: #f3ead8;
+}
+
+.img-fallback {
+  padding: 28px 16px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+
+.zonkicon {
+  font-size: 74px;
+  line-height: 1.1;
+  margin: 6px 0 4px;
+  filter: drop-shadow(0 6px 0 rgba(71, 36, 21, 0.14));
+}
+
+/* Account Reward Credentials Box */
+.accountbox {
+  background: #fffdf7;
+  border: 3px dashed var(--ink);
+  border-radius: 16px;
+  padding: 12px;
+  text-align: left;
+  margin: 10px 0;
+  word-break: break-all;
+  box-shadow: inset 0 2px 6px rgba(71, 36, 21, 0.06);
+}
+
+.cred-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1.5px solid rgba(71, 36, 21, 0.12);
+}
+
+.cred-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.cred-label {
+  font-size: 10.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: block;
+}
+
+.accountbox code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.copy-btn {
+  border: 2px solid var(--ink);
+  background: var(--cream);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.copy-btn:active {
+  transform: translateY(1px);
+}
+
+.close {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 10px;
+  border: 3.5px solid var(--ink);
+  border-radius: 15px;
+  background: linear-gradient(180deg, var(--gold-top) 0%, var(--gold-mid) 55%, var(--gold-bot) 100%);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.8), 0 5px 0 var(--ink);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.close:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+/* Capsule Open Animation during Roll */
+.capsule-loader {
+  width: 72px;
+  height: 72px;
+  margin: 16px auto 14px;
+  border-radius: 50%;
+  border: 4px solid var(--ink);
+  background: linear-gradient(180deg, #ff7eb6 0 47%, var(--ink) 47% 53%, #fff9e6 53% 100%);
+  box-shadow: inset -4px -6px 0 rgba(0, 0, 0, 0.12), 0 6px 0 rgba(71, 36, 21, 0.2);
+  position: relative;
+  animation: capsuleWobble 0.6s ease-in-out infinite alternate;
+}
+
+.capsule-loader::after {
+  content: "✨";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+}
+
+@keyframes capsuleWobble {
+  0% { transform: rotate(-12deg) scale(0.96); }
+  50% { transform: translateY(-6px) rotate(0deg) scale(1.05); }
+  100% { transform: rotate(12deg) scale(0.96); }
+}
+
+/* Pure CSS Sparkles & Confetti for Rare / Jackpot */
+.fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 22px;
+}
+
+.sparkle {
+  position: absolute;
+  font-size: 18px;
+  animation: sparkleFloat 1.4s ease-in-out infinite alternate;
+}
+
+.sparkle.s1 { top: 12px; left: 16px; animation-delay: 0s; }
+.sparkle.s2 { top: 18px; right: 18px; animation-delay: 0.3s; }
+.sparkle.s3 { bottom: 78px; left: 18px; animation-delay: 0.6s; }
+.sparkle.s4 { bottom: 82px; right: 16px; animation-delay: 0.9s; }
+
+@keyframes sparkleFloat {
+  from { transform: scale(0.8) rotate(-10deg); opacity: 0.6; }
+  to { transform: scale(1.2) rotate(12deg); opacity: 1; }
+}
+
+.confetti {
+  position: absolute;
+  top: -10px;
+  width: 8px;
+  height: 14px;
+  border-radius: 3px;
+  opacity: 0.9;
+  animation: confettiFall 1.8s linear infinite;
+}
+
+.confetti.c1 { left: 12%; background: #ff598f; animation-delay: 0s; }
+.confetti.c2 { left: 28%; background: #35c9d9; animation-delay: 0.25s; }
+.confetti.c3 { left: 48%; background: #ffbe0b; animation-delay: 0.5s; }
+.confetti.c4 { left: 68%; background: #8338ec; animation-delay: 0.15s; }
+.confetti.c5 { left: 85%; background: #06d6a0; animation-delay: 0.4s; }
+
+@keyframes confettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(340px) rotate(320deg); opacity: 0; }
+}
+
+/* Toast Notification */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom, 20px));
+  transform: translateX(-50%) translateY(100px);
+  background: var(--ink);
+  color: #fff9e6;
+  border: 3px solid #fff9e6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  z-index: 120;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Small Screen Adjustments (360px) */
+@media (max-width: 375px) {
+  .app { padding-inline: 8px; gap: 8px; }
+  .topbar { padding: 6px 10px; min-height: 54px; }
+  .window { height: 248px; margin: 8px 8px 0; }
+  .controls { padding: 10px; gap: 8px; }
+  .ctrl { min-width: 54px; min-height: 56px; }
+  .toy { width: 46px; height: 46px; }
+  .toy-inner { width: 30px; height: 30px; font-size: 20px; }
+}
+
+/* Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.05s !important;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 1. STICKY COMPACT HEADER -->
+  <header class="topbar">
+    <div class="brand-wrap">
+      <div class="brand-icon" aria-hidden="true">🕹️</div>
+      <div class="brand-text">
+        <span class="brand-sub">Kawaii Arcade</span>
+        <div class="brand">Gacha Claw</div>
+      </div>
+    </div>
+    <div class="pill" aria-live="polite">
+      <span class="pill-icon" aria-hidden="true">🏆</span>
+      <span class="pill-label">WIN</span>
+      <span class="pill-count" id="wins">0</span>
+    </div>
+  </header>
+
+  <!-- 2. SMALL STATUS / INSTRUCTION -->
+  <div class="status-banner" role="status" aria-live="polite">
+    <span class="status-dot" aria-hidden="true"></span>
+    <span id="statusText">Move the claw &amp; catch a capsule!</span>
+  </div>
+
+  <!-- 3. MAIN GAME & INFO STACK -->
+  <div class="layout">
+    <main class="machine" aria-label="Claw Machine">
+      <div class="header">
+        <div class="marquee-lights" aria-hidden="true">
+          <span class="bulb"></span><span class="bulb"></span><span class="bulb"></span>
+        </div>
+        <div class="header-badge">LUCKY CATCH</div>
+        <div class="marquee-lights" aria-hidden="true">
+          <span class="bulb"></span><span class="bulb"></span><span class="bulb"></span>
+        </div>
+      </div>
+
+      <div class="window" id="window">
+        <div class="window-bg-decor" aria-hidden="true"></div>
+        <div class="rail"></div>
+        <div class="gantry" id="gantry"></div>
+        <div class="rope" id="rope"></div>
+        <div class="claw" id="claw">
+          <i class="hub"></i>
+          <i class="finger l"></i>
+          <i class="finger r"></i>
+        </div>
+        <div class="chute">PRIZE ↙</div>
+        <div class="floor-lip"></div>
+      </div>
+
+      <!-- 4. CONTROLS -->
+      <div class="controls">
+        <div class="controller">
+          <button class="ctrl" id="left" type="button" aria-label="Gerak capit ke kiri">◀</button>
+          <button class="ctrl" id="right" type="button" aria-label="Gerak capit ke kanan">▶</button>
+        </div>
+        <button class="ctrl drop" id="drop" type="button" aria-label="Drop Claw untuk mengambil kapsul">
+          <span class="drop-main">DROP CLAW</span>
+          <span class="drop-sub">✨ Catch! ✨</span>
+        </button>
+      </div>
+    </main>
+
+    <!-- 5. PROBABILITY SUMMARY & COLLECTION -->
+    <aside class="side">
+      <section class="panel" aria-label="Drop Rate">
+        <div class="panel-head">
+          <h2>🎲 DROP RATE</h2>
+          <span class="panel-tag">4 Tiers</span>
+        </div>
+        <div class="odds">
+          <div class="odd-card odd-zonk">
+            <div class="odd-top">
+              <span class="odd-name">💩 Zonk</span>
+              <b class="odd-pct">40%</b>
+            </div>
+            <div class="odd-bar"><div class="odd-fill"></div></div>
+          </div>
+          <div class="odd-card odd-random">
+            <div class="odd-top">
+              <span class="odd-name">😂 Meme</span>
+              <b class="odd-pct">40%</b>
+            </div>
+            <div class="odd-bar"><div class="odd-fill"></div></div>
+          </div>
+          <div class="odd-card odd-waifu">
+            <div class="odd-top">
+              <span class="odd-name">💖 Waifu <span class="odd-mini-badge">RARE</span></span>
+              <b class="odd-pct">15%</b>
+            </div>
+            <div class="odd-bar"><div class="odd-fill"></div></div>
+          </div>
+          <div class="odd-card odd-account">
+            <div class="odd-top">
+              <span class="odd-name">👑 Account <span class="odd-mini-badge">SSR</span></span>
+              <b class="odd-pct">5%</b>
+            </div>
+            <div class="odd-bar"><div class="odd-fill"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Riwayat Hadiah">
+        <div class="panel-head">
+          <h2>🏆 RECENT PRIZES</h2>
+          <span class="panel-tag">Max 8</span>
+        </div>
+        <div class="history" id="history">
+          <span class="empty-history">Belum ada hadiah. Tangkap kapsul pertamamu!</span>
+        </div>
+      </section>
+
+      <div class="footer-bar">
+        <p class="hint">Geser <b>◀ ▶</b> lalu tekan <b>DROP CLAW</b>.</p>
+        <a class="adminlink" href="/admin.html">⚙️ ADMIN</a>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- 6. REWARD REVEAL MODAL & TOAST -->
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Hasil Gacha">
+  <div class="reward" id="reward"></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const winEl = $("#window"), gantry = $("#gantry"), claw = $("#claw"), rope = $("#rope");
+const left = $("#left"), right = $("#right"), drop = $("#drop");
+const modal = $("#modal"), rewardEl = $("#reward"), historyEl = $("#history"), winsEl = $("#wins"), toast = $("#toast");
+const statusText = $("#statusText");
+
+const icons = ["🧸", "🐰", "🤖", "🐧", "🐱", "🐙", "🦊", "🐸", "👾", "🐼", "🐹", "🦄"];
+const capsuleColors = ["#7cebf7", "#ff9ec7", "#ffe066", "#a8f5b8", "#cbb2ff", "#ffb885"];
+
+const IDLE_ROPE = 34;
+const IDLE_CLAW = 52;
+const TOY_RADIUS = 25;
+
+function uid() {
+  return (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+        const r = (Math.random() * 16) | 0;
+        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+      });
+}
+
+let toys = [], busy = false, x = 0.52, wins = 0;
+let playerId = null;
+try {
+  playerId = localStorage.getItem("gachaPlayerId");
+  if (!playerId) {
+    playerId = "p" + uid().replaceAll("-", "").slice(0, 16);
+    localStorage.setItem("gachaPlayerId", playerId);
+  }
+} catch {
+  playerId = "p" + uid().replaceAll("-", "").slice(0, 16);
+}
+
+function setStatus(msg) {
+  if (statusText) statusText.textContent = msg;
+}
+
+function notify(t) {
+  toast.textContent = t;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 1600);
+}
+
+function bounds() {
+  return winEl.getBoundingClientRect();
+}
+
+function clawX() {
+  return x * bounds().width;
+}
+
+function setX(n) {
+  x = Math.max(0.12, Math.min(0.88, n));
+  const pct = (x * 100) + "%";
+  gantry.style.left = pct;
+  rope.style.left = pct;
+  claw.style.left = pct;
+}
+
+function randomToyPos() {
+  const r = bounds();
+  const minX = 94;
+  const maxX = Math.max(minX + 40, r.width - 32);
+  const minY = r.height * 0.63;
+  const maxY = r.height * 0.85;
+
+  let best = null;
+  let bestDist = -1;
+  for (let i = 0; i < 18; i++) {
+    const cx = Math.random() * (maxX - minX) + minX;
+    const cy = Math.random() * (maxY - minY) + minY;
+    const minDist = toys.length
+      ? Math.min(...toys.map(t => Math.hypot((t.x - cx) * 1.1, t.y - cy)))
+      : 999;
+    if (minDist > bestDist) {
+      bestDist = minDist;
+      best = { x: cx, y: cy };
+    }
+  }
+  return best || { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+}
+
+function applyToyDepth(el, y, winHeight) {
+  const norm = Math.max(0, Math.min(1, (y - winHeight * 0.62) / (winHeight * 0.25)));
+  const zLayer = Math.round(3 + norm * 3);
+  const scale = (0.93 + norm * 0.09).toFixed(3);
+  el.style.setProperty("--z-layer", zLayer);
+  el.style.setProperty("--depth-scale", scale);
+}
+
+function spawnToy(delay = 0) {
+  setTimeout(() => {
+    const r = bounds();
+    const p = randomToyPos();
+    const el = document.createElement("div");
+    el.className = "toy";
+
+    const inner = document.createElement("span");
+    inner.className = "toy-inner";
+    inner.textContent = icons[Math.floor(Math.random() * icons.length)];
+    el.appendChild(inner);
+
+    const capColor = capsuleColors[Math.floor(Math.random() * capsuleColors.length)];
+    el.style.setProperty("--cap-top", capColor);
+    el.style.setProperty("--rot", (Math.random() * 26 - 13).toFixed(1) + "deg");
+    el.style.setProperty("--float-delay", (Math.random() * 2).toFixed(2) + "s");
+    applyToyDepth(el, p.y, r.height);
+
+    el.style.left = (p.x - TOY_RADIUS) + "px";
+    el.style.top = (p.y - TOY_RADIUS) + "px";
+    winEl.appendChild(el);
+    toys.push({ id: uid(), el, x: p.x, y: p.y });
+  }, delay);
+}
+
+function initToys() {
+  for (let i = 0; i < 10; i++) spawnToy(i * 30);
+}
+
+function nearest() {
+  const cx = clawX(), r = bounds();
+  const targetY = r.height * 0.73;
+  return toys
+    .map(t => ({ ...t, d: Math.hypot(t.x - cx, (t.y - targetY) * 0.7) }))
+    .sort((a, b) => a.d - b.d)[0];
+}
+
+function disable(v) {
+  busy = v;
+  left.disabled = v;
+  right.disabled = v;
+  drop.disabled = v;
+}
+
+function move(dir) {
+  if (busy) return;
+  setX(x + dir * 0.055);
+}
+
+let hold;
+for (const [btn, dir] of [[left, -1], [right, 1]]) {
+  btn.addEventListener("pointerdown", () => {
+    btn.classList.add("is-pressed");
+    move(dir);
+    clearInterval(hold);
+    hold = setInterval(() => move(dir), 95);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(e =>
+    btn.addEventListener(e, () => {
+      btn.classList.remove("is-pressed");
+      clearInterval(hold);
+    })
+  );
+}
+
+window.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") move(-1);
+  if (e.key === "ArrowRight") move(1);
+  if ((e.key === " " || e.key === "ArrowDown") && !busy) {
+    e.preventDefault();
+    dropClaw();
+  }
+});
+
+drop.addEventListener("click", dropClaw);
+
+async function dropClaw() {
+  if (busy) return;
+  disable(true);
+  setStatus("Lowering claw...");
+
+  const r = bounds();
+  const n = nearest();
+  const caught = n && n.d < 64;
+
+  const targetDepth = caught
+    ? Math.max(126, Math.min(r.height - 72, Math.round(n.y - 36)))
+    : Math.max(138, Math.round(r.height * 0.65));
+
+  rope.style.height = targetDepth + "px";
+  claw.style.top = (targetDepth + 16) + "px";
+  await wait(540);
+
+  if (caught) {
+    claw.classList.add("closed", "bounce");
+    n.el.classList.add("grabbed");
+    setStatus("Capsule grabbed! Lifting up...");
+    await wait(260);
+    const cx = clawX();
+    n.el.style.left = (cx - TOY_RADIUS) + "px";
+    n.el.style.top = (IDLE_CLAW + 18) + "px";
+    await wait(160);
+  } else {
+    setStatus("Missed! Move ◀ ▶ & try again.");
+    notify("Miss! Coba geser sedikit.");
+  }
+
+  rope.style.height = IDLE_ROPE + "px";
+  claw.style.top = IDLE_CLAW + "px";
+  if (caught) n.el.style.top = (IDLE_CLAW + 14) + "px";
+  await wait(560);
+
+  if (caught) await finishCatch(n);
+  claw.classList.remove("closed", "bounce");
+  setStatus("Move the claw & catch a capsule!");
+  disable(false);
+}
+
+function memeFallbackDataUri() {
+  const lines = [
+    ["WHEN API MEME LAGI ERROR", "TAPI GACHA TETAP JALAN 😭"],
+    ["PLAYER: CUMA SEKALI", "JUGA PLAYER: DROP LAGI 😂"],
+    ["40% MEME DROP", "100% CHAOS"],
+    ["NIATNYA DAPAT JACKPOT", "MALAH DAPAT MEME 💀"]
+  ];
+  const pick = lines[Math.floor(Math.random() * lines.length)];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18181b"/><stop offset="1" stop-color="#3f3f46"/></linearGradient></defs>
+    <rect width="800" height="600" fill="url(#g)"/>
+    <text x="400" y="95" text-anchor="middle" fill="white" font-size="42" font-family="Arial, sans-serif" font-weight="900" stroke="#000" stroke-width="7" paint-order="stroke">${pick[0]}</text>
+    <text x="400" y="325" text-anchor="middle" font-size="150">😂</text>
+    <text x="400" y="535" text-anchor="middle" fill="white" font-size="42" font-family="Arial, sans-serif" font-weight="900" stroke="#000" stroke-width="7" paint-order="stroke">${pick[1]}</text>
+  </svg>`;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
+async function attachRandomMeme(data) {
+  const subreddits = ["memes", "wholesomememes", "me_irl"];
+  const shuffled = subreddits.sort(() => Math.random() - 0.5);
+
+  for (const subreddit of shuffled) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2200);
+    try {
+      const res = await fetch(`https://meme-api.com/gimme/${subreddit}`, {
+        headers: { "accept": "application/json" },
+        signal: controller.signal
+      });
+      if (!res.ok) continue;
+      const meme = await res.json();
+      if (!meme || meme.nsfw || meme.spoiler) continue;
+
+      const previews = Array.isArray(meme.preview) ? meme.preview : [];
+      const image = previews[previews.length - 1] || meme.url;
+      if (!image) continue;
+
+      data.image = image;
+      data.title = meme.title || "Random Meme";
+      data.artist = [meme.subreddit ? `r/${meme.subreddit}` : "", meme.author ? `u/${meme.author}` : ""]
+        .filter(Boolean)
+        .join(" • ");
+      data.memePost = meme.postLink || "";
+      return data;
+    } catch (_) {
+      // Coba subreddit berikutnya.
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Jangan kembali ke gambar random backend (mis. pemandangan).
+  data.image = memeFallbackDataUri();
+  data.title = "Bonus Meme 😂";
+  data.artist = "Gacha Claw fallback";
+  return data;
+}
+
+async function finishCatch(t) {
+  toys = toys.filter(v => v.id !== t.id);
+  t.el.style.left = "14px";
+  t.el.style.top = (bounds().height - 50) + "px";
+  t.el.style.transform = "scale(.38) rotate(-20deg)";
+  t.el.style.opacity = "0";
+  setTimeout(() => t.el.remove(), 350);
+  spawnToy(500);
+
+  wins++;
+  winsEl.textContent = wins;
+  showLoading();
+
+  try {
+    const res = await fetch("/api/gacha/roll", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ playerId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Roll gagal");
+    if (data.type === "random") await attachRandomMeme(data);
+    showReward(data);
+    addHistory(data);
+  } catch (err) {
+    showReward({
+      type: "error",
+      tier: "?",
+      title: "Server Error",
+      message: err.message
+    });
+  }
+}
+
+function showLoading() {
+  rewardEl.className = "reward";
+  modal.classList.add("show");
+  rewardEl.innerHTML = `
+    <div class="you-got">CAPSULE CAUGHT!</div>
+    <div class="tier-badges"><span class="tier">ROLLING...</span></div>
+    <div class="capsule-loader" aria-hidden="true"></div>
+    <h2>Membuka Kapsul...</h2>
+    <p>Menentukan hadiah keberuntunganmu!</p>
+  `;
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+}
+
+window.copyCred = function(btn, text) {
+  if (!navigator.clipboard) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const prev = btn.textContent;
+    btn.textContent = "COPIED ✓";
+    setTimeout(() => { btn.textContent = prev; }, 1200);
+  });
+};
+
+function showReward(r) {
+  const type = r.type || "random";
+  modal.classList.add("show");
+  rewardEl.className = "reward tier-" + (type === "account-empty" ? "account" : type);
+
+  let fx = "";
+  let headerLabel = "YOU GOT!";
+  let badges = `<span class="tier">${esc(r.tier || "")}</span>`;
+  let body = "";
+
+  if (type === "zonk") {
+    headerLabel = "OH NO! ZONK!";
+    badges = `<span class="tier badge-zonk">ZONK 💩 • ${esc(r.tier || "40%")}</span>`;
+    body = `
+      <div class="zonkicon">${esc(r.emoji || "💩")}</div>
+      <h2>${esc(r.name || "ZONK")}</h2>
+      <p>${esc(r.message || "Belum beruntung, coba lagi!")}</p>
+    `;
+  } else if (type === "account") {
+    headerLabel = "JACKPOT UNLOCKED!";
+    fx = `
+      <div class="fx-layer" aria-hidden="true">
+        <span class="confetti c1"></span><span class="confetti c2"></span>
+        <span class="confetti c3"></span><span class="confetti c4"></span>
+        <span class="confetti c5"></span>
+      </div>
+    `;
+    badges = `
+      <span class="tier badge-account">👑 JACKPOT • ${esc(r.tier || "5%")}</span>
+      <span class="tier badge-account">ACCOUNT REWARD</span>
+    `;
+    body = `
+      <div class="zonkicon">👑</div>
+      <h2>${esc(r.title || "Account Reward")}</h2>
+      <div class="accountbox">
+        <div class="cred-row">
+          <div>
+            <span class="cred-label">Username</span>
+            <code>${esc(r.username)}</code>
+          </div>
+          <button type="button" class="copy-btn" data-val="${esc(r.username)}" onclick="copyCred(this, this.dataset.val)">COPY</button>
+        </div>
+        <div class="cred-row">
+          <div>
+            <span class="cred-label">Password</span>
+            <code>${esc(r.password)}</code>
+          </div>
+          <button type="button" class="copy-btn" data-val="${esc(r.password)}" onclick="copyCred(this, this.dataset.val)">COPY</button>
+        </div>
+        ${r.note ? `<div class="cred-row"><div><span class="cred-label">Catatan</span><span>${esc(r.note)}</span></div></div>` : ""}
+      </div>
+      <p><b>Simpan data ini sekarang!</b> Reward sudah ditandai claimed.</p>
+    `;
+  } else if (type === "waifu") {
+    headerLabel = "SPECIAL DROP!";
+    fx = `
+      <div class="fx-layer" aria-hidden="true">
+        <span class="sparkle s1">✨</span><span class="sparkle s2">💖</span>
+        <span class="sparkle s3">🌸</span><span class="sparkle s4">✨</span>
+      </div>
+    `;
+    badges = `
+      <span class="tier badge-waifu">✨ RARE • ${esc(r.tier || "15%")}</span>
+      <span class="tier badge-waifu">WAIFU</span>
+    `;
+    body = `
+      <h2>${esc(r.title || "Anime Girl")}</h2>
+      <div class="reward-img-wrap">
+        <img src="${esc(r.image)}" alt="${esc(r.title || "Waifu Reward")}" loading="lazy" referrerpolicy="no-referrer"
+          onerror="this.outerHTML='<div class=\'img-fallback\'>💖 Preview gambar offline — hadiah Waifu berhasil diklaim!</div>'" />
+      </div>
+      ${r.artist ? `<p>Artist: <b>${esc(r.artist)}</b></p>` : ""}
+    `;
+  } else if (r.image) {
+    headerLabel = "YOU GOT!";
+    badges = `<span class="tier badge-random">😂 MEME • ${esc(r.tier || "40%")}</span>`;
+    body = `
+      <h2>${esc(r.title || "Random Meme")}</h2>
+      <div class="reward-img-wrap">
+        <img src="${esc(r.image)}" alt="${esc(r.title || "Meme Reward")}" loading="lazy" referrerpolicy="no-referrer"
+          onerror="this.outerHTML='<div class=\'img-fallback\'>😂 Meme gagal dimuat — tapi tier Meme berhasil diklaim!</div>'" />
+      </div>
+      ${r.artist ? `<p>Artist: <b>${esc(r.artist)}</b></p>` : ""}
+    `;
+  } else {
+    headerLabel = type === "account-empty" ? "JACKPOT SLOT!" : "INFO";
+    if (type === "account-empty") {
+      badges = `<span class="tier badge-account">👑 JACKPOT • 5%</span>`;
+    }
+    body = `
+      <div class="zonkicon">🎟️</div>
+      <h2>${esc(r.title || "Hadiah")}</h2>
+      <p>${esc(r.message || "")}</p>
+    `;
+  }
+
+  rewardEl.innerHTML = `
+    ${fx}
+    <div class="you-got">${headerLabel}</div>
+    <div class="tier-badges">${badges}</div>
+    ${body}
+    <button class="close" id="closeModal" type="button">LANJUT MAIN</button>
+  `;
+  $("#closeModal").onclick = () => modal.classList.remove("show");
+}
+
+function addHistory(r) {
+  if (historyEl.dataset.started !== "1") {
+    historyEl.innerHTML = "";
+    historyEl.dataset.started = "1";
+  }
+  const c = document.createElement("span");
+  const typeClass = r.type === "waifu" ? "chip-waifu" : (r.type === "account" ? "chip-account" : (r.type === "random" ? "chip-random" : ""));
+  c.className = "chip " + typeClass;
+  const icon = ({
+    zonk: "💩",
+    random: "😂",
+    waifu: "💖",
+    account: "👑",
+    "account-empty": "🎟️"
+  }[r.type] || "🎁");
+  c.textContent = icon + " " + (r.title || r.name || "Reward");
+  historyEl.prepend(c);
+  while (historyEl.children.length > 8) historyEl.lastChild.remove();
+}
+
+function wait(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+window.addEventListener("resize", () => {
+  const r = bounds();
+  toys.forEach(t => {
+    t.x = Math.max(94, Math.min(t.x, r.width - 32));
+    t.y = Math.max(r.height * 0.63, Math.min(t.y, r.height * 0.85));
+    t.el.style.left = (t.x - TOY_RADIUS) + "px";
+    t.el.style.top = (t.y - TOY_RADIUS) + "px";
+    applyToyDepth(t.el, t.y, r.height);
+  });
+});
+
+setX(x);
+setTimeout(initToys, 80);
+</script>
+</body>
+</html>
