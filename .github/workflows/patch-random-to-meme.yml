@@ -1,11 +1,10 @@
-# one-shot patch trigger v2
+# one-shot meme patch
 name: Patch random reward to memes
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/patch-random-to-meme.yml
+  workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
@@ -97,7 +96,7 @@ jobs:
               }
             }
 
-            // Never fall back to the backend's generic/random landscape image.
+            // Never fall back to backend generic/random images such as landscapes.
             data.image = memeFallbackDataUri();
             data.title = "Bonus Meme 😂";
             data.artist = "Gacha Claw fallback";
