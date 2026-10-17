@@ -1,0 +1,146 @@
+name: Patch random reward to memes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-random-to-meme.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch game.html
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          p = Path("game.html")
+          s = p.read_text(encoding="utf-8")
+
+          if "async function attachRandomMeme(data)" in s:
+              print("Meme patch already present; nothing to do.")
+              raise SystemExit(0)
+
+          old = '<span class="odd-name">🖼️ Random</span>'
+          new = '<span class="odd-name">😂 Meme</span>'
+          if old not in s:
+              raise SystemExit("Drop-rate Random label not found")
+          s = s.replace(old, new, 1)
+
+          marker = "async function finishCatch(t) {"
+          if marker not in s:
+              raise SystemExit("finishCatch marker not found")
+
+          helper = r'''function memeFallbackDataUri() {
+            const lines = [
+              ["WHEN API MEME LAGI ERROR", "TAPI GACHA TETAP JALAN 😭"],
+              ["PLAYER: CUMA SEKALI", "JUGA PLAYER: DROP LAGI 😂"],
+              ["40% MEME DROP", "100% CHAOS"],
+              ["NIATNYA DAPAT JACKPOT", "MALAH DAPAT MEME 💀"]
+            ];
+            const pick = lines[Math.floor(Math.random() * lines.length)];
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+              <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18181b"/><stop offset="1" stop-color="#3f3f46"/></linearGradient></defs>
+              <rect width="800" height="600" fill="url(#g)"/>
+              <text x="400" y="95" text-anchor="middle" fill="white" font-size="42" font-family="Arial, sans-serif" font-weight="900" stroke="#000" stroke-width="7" paint-order="stroke">${pick[0]}</text>
+              <text x="400" y="325" text-anchor="middle" font-size="150">😂</text>
+              <text x="400" y="535" text-anchor="middle" fill="white" font-size="42" font-family="Arial, sans-serif" font-weight="900" stroke="#000" stroke-width="7" paint-order="stroke">${pick[1]}</text>
+            </svg>`;
+            return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+          }
+
+          async function attachRandomMeme(data) {
+            const subreddits = ["memes", "wholesomememes", "me_irl"];
+            const shuffled = [...subreddits].sort(() => Math.random() - 0.5);
+
+            for (const subreddit of shuffled) {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 2500);
+              try {
+                const res = await fetch(`https://meme-api.com/gimme/${subreddit}`, {
+                  headers: { "accept": "application/json" },
+                  signal: controller.signal
+                });
+                if (!res.ok) continue;
+
+                const meme = await res.json();
+                if (!meme || meme.nsfw || meme.spoiler) continue;
+
+                const previews = Array.isArray(meme.preview) ? meme.preview : [];
+                const image = meme.url || previews[previews.length - 1];
+                if (!image) continue;
+
+                data.image = image;
+                data.title = meme.title || "Random Meme";
+                data.artist = [
+                  meme.subreddit ? `r/${meme.subreddit}` : "",
+                  meme.author ? `u/${meme.author}` : ""
+                ].filter(Boolean).join(" • ");
+                data.memePost = meme.postLink || "";
+                return data;
+              } catch (_) {
+                // Try another meme subreddit.
+              } finally {
+                clearTimeout(timer);
+              }
+            }
+
+            // Never fall back to the backend's generic/random landscape image.
+            data.image = memeFallbackDataUri();
+            data.title = "Bonus Meme 😂";
+            data.artist = "Gacha Claw fallback";
+            return data;
+          }
+
+          '''
+          s = s.replace(marker, helper + marker, 1)
+
+          old = '    showReward(data);\n    addHistory(data);'
+          new = '    if (data.type === "random") await attachRandomMeme(data);\n    showReward(data);\n    addHistory(data);'
+          if old not in s:
+              raise SystemExit("Reward handling block not found")
+          s = s.replace(old, new, 1)
+
+          replacements = [
+              ('badges = `<span class="tier badge-random">🖼️ RANDOM • ${esc(r.tier || "40%")}</span>`;',
+               'badges = `<span class="tier badge-random">😂 MEME • ${esc(r.tier || "40%")}</span>`;'),
+              ('<h2>${esc(r.title || "Random Image")}</h2>',
+               '<h2>${esc(r.title || "Random Meme")}</h2>'),
+              ('alt="${esc(r.title || "Reward")}"',
+               'alt="${esc(r.title || "Meme Reward")}"'),
+              ('🖼️ Preview gambar offline — hadiah Random berhasil diklaim!',
+               '😂 Meme gagal dimuat — tapi tier Meme berhasil diklaim!'),
+              ('random: "🖼️",', 'random: "😂",')
+          ]
+          for old, new in replacements:
+              if old not in s:
+                  raise SystemExit(f"Expected text not found: {old[:80]}")
+              s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding="utf-8")
+          print("game.html patched: Random 40% => safe random meme")
+          PY
+
+      - name: Commit directly to main
+        shell: bash
+        run: |
+          if git diff --quiet -- game.html; then
+            echo "No changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add game.html
+          git commit -m "fix: replace random image rewards with memes"
+          git push origin HEAD:main
