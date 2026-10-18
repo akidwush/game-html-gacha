@@ -30,3 +30,5 @@ Raw IP addresses are not stored by the game code. An HMAC hash is used as the Ne
 - `IP_HASH_SECRET`
 
 Secrets must stay in Netlify environment variables and must not be committed.
+
+> Deployment note: admin runtime variables were configured in Netlify on 2026-10-18; this commit triggers a fresh production build.
