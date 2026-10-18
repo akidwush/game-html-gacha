@@ -18,27 +18,42 @@ const zonks = [
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 async function rollReward(playerId) {
-  const roll = Math.random() * 100;
+  // 0..9999 gives us an exact 0.1% jackpot bucket (10 numbers out of 10,000).
+  const roll = crypto.randomInt(0, 10000);
 
-  if (roll < 40) return { type: "zonk", tier: "40%", ...pick(zonks) };
-  if (roll < 80) {
+  // 44.9% zonk, 40% meme, 15% waifu, 0.1% account jackpot.
+  if (roll < 4490) return { type: "zonk", tier: "44.9%", ...pick(zonks) };
+  if (roll < 8490) {
     const seed = crypto.randomUUID();
     return { type: "random", tier: "40%", title: "Random Image", image: `https://picsum.photos/seed/${seed}/720/900` };
   }
-  // The 15% tier is decided here, but the actual image provider request is
-  // intentionally delegated to the browser. This keeps provider traffic and
-  // failover off the Netlify Function and allows a much wider client-side pool.
-  if (roll < 95) return { type: "waifu", tier: "15%", title: "Anime Girl", clientFetch: true };
+  // Actual anime image fetching stays in the browser. The function only chooses the tier.
+  if (roll < 9990) return { type: "waifu", tier: "15%", title: "Anime Girl", clientFetch: true };
 
   try {
     const account = await claimOneReward(playerId);
-    if (!account) return { type: "account-empty", tier: "5%", title: "Jackpot Slot", message: "Kena 5%, tapi stok akun admin sedang kosong. Hubungi admin." };
+    if (!account) return {
+      type: "account-empty",
+      tier: "0.1%",
+      title: "Ultra Jackpot Slot",
+      message: "Kena 0,1%, tapi stok akun admin sedang kosong. Hubungi admin."
+    };
     return {
-      type: "account", tier: "5%", title: account.title, username: account.username,
-      password: account.password, note: account.note || "", claimId: account.id
+      type: "account",
+      tier: "0.1%",
+      title: account.title,
+      username: account.username,
+      password: account.password,
+      note: account.note || "",
+      claimId: account.id
     };
   } catch {
-    return { type: "account-empty", tier: "5%", title: "Jackpot Slot", message: "Kena 5%, tapi reward sedang sibuk. Coba lagi nanti." };
+    return {
+      type: "account-empty",
+      tier: "0.1%",
+      title: "Ultra Jackpot Slot",
+      message: "Kena 0,1%, tapi reward sedang sibuk. Coba lagi nanti."
+    };
   }
 }
 
