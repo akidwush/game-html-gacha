@@ -5,6 +5,7 @@ const STORE = "gacha-attempts";
 const DEVICE_COOKIE = "gacha_device";
 const DEVICE_MAX_AGE = 60 * 60 * 24 * 365;
 export const GACHA_LIMIT = 5;
+export const GACHA_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function attemptStore() {
   return getStore({ name: STORE, consistency: "strong" });
@@ -22,7 +23,7 @@ function digest(scope, value) {
 }
 
 function prefixFor(scope, value) {
-  return `v2/${scope}/${digest(scope, value)}/`;
+  return `v3/${scope}/${digest(scope, value)}/`;
 }
 
 function signDeviceId(id) {
@@ -61,24 +62,46 @@ export function deviceCookieHeader(deviceId) {
   return `${DEVICE_COOKIE}=${encodeURIComponent(value)}; Path=/; Max-Age=${DEVICE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`;
 }
 
-async function countUsed(scope, value) {
-  if (!value) return 0;
-  const result = await attemptStore().list({ prefix: prefixFor(scope, value) });
-  return Math.min(result.blobs.length, GACHA_LIMIT);
+// Each successful roll gets an immutable event. Read only UTC today and yesterday,
+// then discard events older than 24 hours. Old v2 events are intentionally ignored:
+// previous permanent limits no longer apply after deployment.
+function datePrefix(timestamp) {
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+async function recentAttempts(scope, value, now) {
+  if (!value) return [];
+  const base = prefixFor(scope, value);
+  const days = [...new Set([datePrefix(now), datePrefix(now - GACHA_WINDOW_MS)])];
+  const results = await Promise.all(days.map(day => attemptStore().list({ prefix: `${base}${day}/` })));
+  return results.flatMap(result => result.blobs.map(blob => {
+    const filename = String(blob.key).split("/").pop();
+    return Number(filename.split("-")[0]);
+  })).filter(ts => Number.isFinite(ts) && ts > now - GACHA_WINDOW_MS && ts <= now);
 }
 
 export async function getAttemptStatus(ip, deviceId) {
-  const [ipUsed, deviceUsed] = await Promise.all([
-    countUsed("ip", ip),
-    countUsed("device", deviceId),
+  const now = Date.now();
+  const [ipEvents, deviceEvents] = await Promise.all([
+    recentAttempts("ip", ip, now),
+    recentAttempts("device", deviceId, now),
   ]);
-  // Casual guard: whichever identity has used more chances wins. This prevents
-  // a simple refresh / rotating mobile IP from visually resetting the limit.
+  const ipUsed = Math.min(ipEvents.length, GACHA_LIMIT);
+  const deviceUsed = Math.min(deviceEvents.length, GACHA_LIMIT);
   const used = Math.min(Math.max(ipUsed, deviceUsed), GACHA_LIMIT);
+
+  // If both IP and device are exhausted, both must free a slot before play resumes.
+  const resets = [];
+  if (ipUsed >= GACHA_LIMIT) resets.push(Math.min(...ipEvents) + GACHA_WINDOW_MS);
+  if (deviceUsed >= GACHA_LIMIT) resets.push(Math.min(...deviceEvents) + GACHA_WINDOW_MS);
+  const resetAt = resets.length ? new Date(Math.max(...resets)).toISOString() : null;
+
   return {
     used,
     remaining: Math.max(0, GACHA_LIMIT - used),
     limit: GACHA_LIMIT,
+    windowHours: 24,
+    resetAt,
   };
 }
 
@@ -86,11 +109,12 @@ export async function registerAttempt(ip, deviceId) {
   const current = await getAttemptStatus(ip, deviceId);
   if (current.remaining <= 0) return current;
 
-  const attemptId = `${Date.now()}-${crypto.randomUUID()}`;
-  const payload = { createdAt: new Date().toISOString() };
+  const now = Date.now();
+  const attemptId = `${now}-${crypto.randomUUID()}`;
+  const payload = { createdAt: new Date(now).toISOString() };
   const writes = [];
-  if (ip) writes.push(attemptStore().setJSON(`${prefixFor("ip", ip)}${attemptId}`, payload, { onlyIfNew: true }));
-  if (deviceId) writes.push(attemptStore().setJSON(`${prefixFor("device", deviceId)}${attemptId}`, payload, { onlyIfNew: true }));
+  if (ip) writes.push(attemptStore().setJSON(`${prefixFor("ip", ip)}${datePrefix(now)}/${attemptId}`, payload, { onlyIfNew: true }));
+  if (deviceId) writes.push(attemptStore().setJSON(`${prefixFor("device", deviceId)}${datePrefix(now)}/${attemptId}`, payload, { onlyIfNew: true }));
   await Promise.all(writes);
   return getAttemptStatus(ip, deviceId);
 }
