@@ -152,8 +152,9 @@ function renderResetCountdown() {
     resetEl.textContent = "Memeriksa reset...";
     return;
   }
-  const hours = Math.floor(ms / 3600000);
-  const minutes = Math.ceil((ms % 3600000) / 60000);
+  const minutesLeft = Math.ceil(ms / 60000);
+  const hours = Math.floor(minutesLeft / 60);
+  const minutes = minutesLeft % 60;
   resetEl.textContent = "Reset dalam " + hours + "j " + minutes + "m";
 }
 function updateChanceUI(status = {}) {
