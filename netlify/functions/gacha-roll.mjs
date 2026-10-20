@@ -66,7 +66,7 @@ export default async (req, context) => {
   if (current.remaining <= 0) {
     return Response.json({
       error: "GACHA_LIMIT_REACHED",
-      message: "Browser/IP ini sudah memakai 5 kesempatan gacha.",
+      message: "Browser/IP ini sudah memakai 5 kesempatan gacha dalam 24 jam.",
       ...current,
     }, {
       status: 429,
