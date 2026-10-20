@@ -12,7 +12,7 @@ function attemptStore() {
 }
 
 function secret() {
-  return Netlify.env.get("IP_HASH_SECRET") || Netlify.env.get("ADMIN_SESSION_SECRET") || "gacha-claw-ip";
+  return Netlify.env.get("IP_HASH_SECRET") || "gacha-claw-ip";
 }
 
 function digest(scope, value) {
