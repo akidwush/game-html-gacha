@@ -22,7 +22,7 @@ The 15% anime tier is selected server-side, but image fetching/failover happens 
 The browser shuffles providers, avoids using the last successful provider first, remembers up to 64 recent image URLs, and automatically fails over when a provider is unavailable/CORS-blocked/rate-limited.
 
 ## Casual per-IP/browser limit
-Maximum **5 successful gacha rolls per IP/browser**. Missed claw drops do not consume a chance. The UI reads `/api/gacha/status`; the server remains the source of truth and returns HTTP 429 after the limit is exhausted.
+Maximum **5 successful gacha rolls in a rolling 24-hour window per IP/browser**. Missed claw drops do not consume a chance. Each roll expires independently 24 hours after it succeeds, so chances return gradually instead of staying permanently blocked. Changing browsers on the same IP does not reset the server's IP counter. The UI reads `/api/gacha/status`, including `resetAt`, and the server returns HTTP 429 when blocked.
 
 Raw IP addresses are not stored by the game code. An HMAC hash plus a signed browser device cookie is used for the casual limit.
 
@@ -35,11 +35,14 @@ Raw IP addresses are not stored by the game code. An HMAC hash plus a signed bro
 ## Build
 `game.html` at the repository root is the source UI. `npm run build` generates `public/game.html` and injects the CHANCES UI, current odds, refresh-safe limit handling, and browser-side anime-provider pool without rewriting the claw physics.
 
-## Required Netlify environment variables
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD_SALT`
-- `ADMIN_PASSWORD_HASH`
-- `ADMIN_SESSION_SECRET`
-- `IP_HASH_SECRET`
+## Simple admin login (public demo only)
+Open `/admin.html` and press LOGIN. For this deliberately simplified demo, the form is prefilled with:
+- Email: `admin@gacha.local`
+- Password: `GachaClaw2026!`
 
-Secrets must stay in Netlify environment variables and must not be committed.
+Admin credentials are also checked in `netlify/lib/auth.mjs`. **They are visible in browser source code and provide no meaningful protection**. Every visitor can discover these credentials and access the reward list, including account passwords. **Do not add real or valuable account rewards while using this mode**. For production, restore proper server-side authentication.
+
+No Netlify admin environment variables are needed for demo login. `IP_HASH_SECRET` is optional for the IP/browser limiter; absent it, the code uses a fixed demo fallback for stable identifiers.
+
+## Deploy and build
+Netlify still needs its Functions and Blobs for server-side IP checks and shared jackpot reward records; this project is *not* a purely static HTML app. Deploy with the provided `netlify.toml` so `npm run build` runs. A pure HTML hosting service can show the game UI but cannot enforce IP-wide limits or share admin reward claims.
