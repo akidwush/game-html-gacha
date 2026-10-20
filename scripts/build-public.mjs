@@ -60,7 +60,7 @@ replaceOnce(
   <div class="chance-strip is-checking" id="chanceStrip" aria-live="polite">
     <span aria-hidden="true">🎟️</span> CHANCES
     <strong class="chance-count" id="chances">…/5</strong>
-    <span>per IP/browser</span>
+    <span id="chanceReset">per 24 jam • IP/browser</span>
   </div>`
 );
 
@@ -106,7 +106,7 @@ replaceOnce(
   "chance JS refs",
   `const statusText = $("#statusText");`,
   `const statusText = $("#statusText");
-const chancesEl = $("#chances"), chanceStrip = $("#chanceStrip");`
+const chancesEl = $("#chances"), chanceStrip = $("#chanceStrip"), resetEl = $("#chanceReset");`
 );
 
 replaceOnce(
@@ -114,6 +114,7 @@ replaceOnce(
   `let toys = [], busy = false, x = 0.52, wins = 0;`,
   `let toys = [], busy = false, x = 0.52, wins = 0;
 let gachaRemaining = 5, gachaLimit = 5, limitReached = false, gachaReady = false;
+let gachaResetAt = null;
 let cachedRemaining = null;
 try {
   const cached = Number(localStorage.getItem("gachaRemainingV2"));
@@ -140,10 +141,27 @@ replaceOnce(
   if (statusText) statusText.textContent = msg;
 }
 
+function renderResetCountdown() {
+  if (!resetEl) return;
+  if (!limitReached || !gachaResetAt) {
+    resetEl.textContent = "per 24 jam • IP/browser";
+    return;
+  }
+  const ms = Date.parse(gachaResetAt) - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) {
+    resetEl.textContent = "Memeriksa reset...";
+    return;
+  }
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.ceil((ms % 3600000) / 60000);
+  resetEl.textContent = "Reset dalam " + hours + "j " + minutes + "m";
+}
 function updateChanceUI(status = {}) {
   if (Number.isFinite(Number(status.limit))) gachaLimit = Number(status.limit);
   if (Number.isFinite(Number(status.remaining))) gachaRemaining = Math.max(0, Number(status.remaining));
   limitReached = gachaRemaining <= 0;
+  if (Object.prototype.hasOwnProperty.call(status, "resetAt")) gachaResetAt = status.resetAt;
+  renderResetCountdown();
   gachaReady = true;
   try {
     localStorage.setItem("gachaRemainingV2", String(gachaRemaining));
@@ -155,8 +173,14 @@ function updateChanceUI(status = {}) {
     chanceStrip.classList.toggle("is-empty", limitReached);
   }
   if (drop) drop.disabled = busy || limitReached || !gachaReady;
-  if (limitReached) setStatus("Limit reached — 5 kesempatan gacha untuk IP/browser ini sudah habis.");
+  if (limitReached) setStatus("Limit 5 gacha dalam 24 jam habis. Kesempatan akan kembali otomatis.");
 }
+
+setInterval(() => {
+  if (!limitReached || !gachaResetAt) return;
+  renderResetCountdown();
+  if (Date.now() >= Date.parse(gachaResetAt)) loadGachaStatus();
+}, 60 * 1000);
 
 async function loadGachaStatus() {
   if (chanceStrip) chanceStrip.classList.add("is-checking");
@@ -448,7 +472,7 @@ replaceOnce(
         updateChanceUI(data);
         showReward({
           type: "limit", tier: "0 LEFT", title: "LIMIT REACHED",
-          message: "Kamu sudah memakai 5 kesempatan gacha untuk IP/browser ini."
+          message: "Kamu sudah memakai 5 kesempatan gacha dalam 24 jam. Cek hitung mundur reset."
         });
         return;
       }
