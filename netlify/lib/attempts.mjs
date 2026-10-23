@@ -4,8 +4,8 @@ import { getStore } from "@netlify/blobs";
 const STORE = "gacha-attempts";
 const DEVICE_COOKIE = "gacha_device";
 const DEVICE_MAX_AGE = 60 * 60 * 24 * 365;
-export const GACHA_LIMIT = 5;
-export const GACHA_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const GACHA_LIMIT = 25;
+export const GACHA_WINDOW_MS = 18 * 60 * 60 * 1000;
 
 function attemptStore() {
   return getStore({ name: STORE, consistency: "strong" });
@@ -63,7 +63,7 @@ export function deviceCookieHeader(deviceId) {
 }
 
 // Each successful roll gets an immutable event. Read only UTC today and yesterday,
-// then discard events older than 24 hours. Old v2 events are intentionally ignored:
+// then discard events older than 18 hours. Old v2 events are intentionally ignored:
 // previous permanent limits no longer apply after deployment.
 function datePrefix(timestamp) {
   return new Date(timestamp).toISOString().slice(0, 10);
@@ -100,7 +100,7 @@ export async function getAttemptStatus(ip, deviceId) {
     used,
     remaining: Math.max(0, GACHA_LIMIT - used),
     limit: GACHA_LIMIT,
-    windowHours: 24,
+    windowHours: 18,
     resetAt,
   };
 }
