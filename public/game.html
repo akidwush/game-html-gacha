@@ -812,7 +812,7 @@ body::before {
 }
 
 /* Specific Rarity Accents in 2x2 Grid */
-.odd-zonk .odd-fill { width: 40%; background: #9c7a65; }
+.odd-zonk .odd-fill { width: 44.9%; background: #9c7a65; }
 .odd-random { background: #eefcff; }
 .odd-random .odd-fill { width: 40%; background: var(--cyan); }
 
@@ -845,7 +845,7 @@ body::before {
   background: linear-gradient(180deg, #ffe875 0%, #ffb700 100%);
 }
 .odd-account .odd-fill {
-  width: 20%;
+  width: 3px;
   background: linear-gradient(90deg, #ff9900, #ffd000);
 }
 
@@ -1280,6 +1280,38 @@ body::before {
     transition-duration: 0.05s !important;
   }
 }
+
+/* Casual per-IP/browser gacha chance indicator */
+.chance-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: fit-content;
+  max-width: 100%;
+  margin: -2px auto 0;
+  padding: 5px 12px;
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff9db 0%, #ffe47b 100%);
+  box-shadow: 0 3px 0 rgba(71, 36, 21, 0.18);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .25px;
+}
+.chance-strip.is-empty { background: #eadfd6; opacity: .88; }
+.chance-strip.is-checking { opacity: .72; }
+.chance-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 1px 7px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+}
 </style>
 </head>
 <body>
@@ -1304,6 +1336,11 @@ body::before {
   <div class="status-banner" role="status" aria-live="polite">
     <span class="status-dot" aria-hidden="true"></span>
     <span id="statusText">Move the claw &amp; catch a capsule!</span>
+  </div>
+  <div class="chance-strip is-checking" id="chanceStrip" aria-live="polite">
+    <span aria-hidden="true">🎟️</span> CHANCES
+    <strong class="chance-count" id="chances">…/5</strong>
+    <span id="chanceReset">per 24 jam • IP/browser</span>
   </div>
 
   <!-- 3. MAIN GAME & INFO STACK -->
@@ -1357,13 +1394,13 @@ body::before {
           <div class="odd-card odd-zonk">
             <div class="odd-top">
               <span class="odd-name">💩 Zonk</span>
-              <b class="odd-pct">40%</b>
+              <b class="odd-pct">44.9%</b>
             </div>
             <div class="odd-bar"><div class="odd-fill"></div></div>
           </div>
           <div class="odd-card odd-random">
             <div class="odd-top">
-              <span class="odd-name">😂 Meme</span>
+              <span class="odd-name">🎲 Random Image</span>
               <b class="odd-pct">40%</b>
             </div>
             <div class="odd-bar"><div class="odd-fill"></div></div>
@@ -1377,8 +1414,8 @@ body::before {
           </div>
           <div class="odd-card odd-account">
             <div class="odd-top">
-              <span class="odd-name">👑 Account <span class="odd-mini-badge">SSR</span></span>
-              <b class="odd-pct">5%</b>
+              <span class="odd-name">👑 Account <span class="odd-mini-badge">ULTRA</span></span>
+              <b class="odd-pct">0.1%</b>
             </div>
             <div class="odd-bar"><div class="odd-fill"></div></div>
           </div>
@@ -1415,6 +1452,7 @@ const winEl = $("#window"), gantry = $("#gantry"), claw = $("#claw"), rope = $("
 const left = $("#left"), right = $("#right"), drop = $("#drop");
 const modal = $("#modal"), rewardEl = $("#reward"), historyEl = $("#history"), winsEl = $("#wins"), toast = $("#toast");
 const statusText = $("#statusText");
+const chancesEl = $("#chances"), chanceStrip = $("#chanceStrip"), resetEl = $("#chanceReset");
 
 const icons = ["🧸", "🐰", "🤖", "🐧", "🐱", "🐙", "🦊", "🐸", "👾", "🐼", "🐹", "🦄"];
 const capsuleColors = ["#7cebf7", "#ff9ec7", "#ffe066", "#a8f5b8", "#cbb2ff", "#ffb885"];
@@ -1433,6 +1471,23 @@ function uid() {
 }
 
 let toys = [], busy = false, x = 0.52, wins = 0;
+let gachaRemaining = 5, gachaLimit = 5, limitReached = false, gachaReady = false;
+let gachaResetAt = null;
+let cachedRemaining = null;
+try {
+  const cached = Number(localStorage.getItem("gachaRemainingV2"));
+  const cachedLimit = Number(localStorage.getItem("gachaLimitV2"));
+  if (Number.isFinite(cached) && cached >= 0 && cached <= 5) cachedRemaining = cached;
+  if (Number.isFinite(cachedLimit) && cachedLimit > 0) gachaLimit = cachedLimit;
+} catch {}
+if (cachedRemaining !== null) {
+  gachaRemaining = cachedRemaining;
+  limitReached = cachedRemaining <= 0;
+  if (chancesEl) chancesEl.textContent = gachaRemaining + "/" + gachaLimit;
+  if (chanceStrip) chanceStrip.classList.toggle("is-empty", limitReached);
+}
+// Prevent refresh race: DROP stays locked until server status is verified.
+drop.disabled = true;
 let playerId = null;
 try {
   playerId = localStorage.getItem("gachaPlayerId");
@@ -1446,6 +1501,76 @@ try {
 
 function setStatus(msg) {
   if (statusText) statusText.textContent = msg;
+}
+
+function renderResetCountdown() {
+  if (!resetEl) return;
+  if (!limitReached || !gachaResetAt) {
+    resetEl.textContent = "per 24 jam • IP/browser";
+    return;
+  }
+  const ms = Date.parse(gachaResetAt) - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) {
+    resetEl.textContent = "Memeriksa reset...";
+    return;
+  }
+  const minutesLeft = Math.ceil(ms / 60000);
+  const hours = Math.floor(minutesLeft / 60);
+  const minutes = minutesLeft % 60;
+  resetEl.textContent = "Reset dalam " + hours + "j " + minutes + "m";
+}
+function updateChanceUI(status = {}) {
+  if (Number.isFinite(Number(status.limit))) gachaLimit = Number(status.limit);
+  if (Number.isFinite(Number(status.remaining))) gachaRemaining = Math.max(0, Number(status.remaining));
+  limitReached = gachaRemaining <= 0;
+  if (Object.prototype.hasOwnProperty.call(status, "resetAt")) gachaResetAt = status.resetAt;
+  renderResetCountdown();
+  gachaReady = true;
+  try {
+    localStorage.setItem("gachaRemainingV2", String(gachaRemaining));
+    localStorage.setItem("gachaLimitV2", String(gachaLimit));
+  } catch {}
+  if (chancesEl) chancesEl.textContent = gachaRemaining + "/" + gachaLimit;
+  if (chanceStrip) {
+    chanceStrip.classList.remove("is-checking");
+    chanceStrip.classList.toggle("is-empty", limitReached);
+  }
+  if (drop) drop.disabled = busy || limitReached || !gachaReady;
+  if (limitReached) setStatus("Limit 5 gacha dalam 24 jam habis. Kesempatan akan kembali otomatis.");
+}
+
+setInterval(() => {
+  if (!limitReached || !gachaResetAt) return;
+  renderResetCountdown();
+  if (Date.now() >= Date.parse(gachaResetAt)) loadGachaStatus();
+}, 60 * 1000);
+
+async function loadGachaStatus() {
+  if (chanceStrip) chanceStrip.classList.add("is-checking");
+  drop.disabled = true;
+  if (!limitReached) setStatus("Checking gacha chances...");
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch("/api/gacha/status", { headers: { accept: "application/json" }, cache: "no-store" });
+      if (!res.ok) throw new Error("status " + res.status);
+      updateChanceUI(await res.json());
+      if (!limitReached) setStatus("Move the claw & catch a capsule!");
+      return;
+    } catch (_) {
+      if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 350 + attempt * 300));
+    }
+  }
+
+  if (cachedRemaining !== null) {
+    updateChanceUI({ remaining: cachedRemaining, limit: gachaLimit });
+    if (!limitReached) setStatus("Using cached chances — server status belum tersedia.");
+  } else {
+    gachaReady = false;
+    drop.disabled = true;
+    if (chanceStrip) chanceStrip.classList.add("is-checking");
+    setStatus("Tidak bisa verifikasi chances. Refresh sebentar lagi.");
+  }
 }
 
 function notify(t) {
@@ -1542,7 +1667,7 @@ function disable(v) {
   busy = v;
   left.disabled = v;
   right.disabled = v;
-  drop.disabled = v;
+  drop.disabled = v || limitReached || !gachaReady;
 }
 
 function move(dir) {
@@ -1578,6 +1703,15 @@ window.addEventListener("keydown", e => {
 drop.addEventListener("click", dropClaw);
 
 async function dropClaw() {
+  if (!gachaReady) {
+    notify("Sedang cek sisa kesempatan...");
+    return;
+  }
+  if (limitReached) {
+    notify("5 kesempatan gacha untuk IP/browser ini sudah habis.");
+    setStatus("Limit reached — 5 kesempatan gacha untuk IP/browser ini sudah habis.");
+    return;
+  }
   if (busy) return;
   disable(true);
   setStatus("Lowering claw...");
@@ -1615,7 +1749,8 @@ async function dropClaw() {
 
   if (caught) await finishCatch(n);
   claw.classList.remove("closed", "bounce");
-  setStatus("Move the claw & catch a capsule!");
+  if (limitReached) setStatus("Limit reached — 5 kesempatan gacha untuk IP/browser ini sudah habis.");
+  else setStatus("Move the claw & catch a capsule!");
   disable(false);
 }
 
@@ -1637,7 +1772,98 @@ function memeFallbackDataUri() {
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
 
+
+const IMAGE_POOL_CATEGORIES = Object.freeze({
+  cat: "Kucing", doggo: "Anjing", car: "Mobil", bike: "Motor", aesthetic: "Aesthetic"
+});
+let imagePoolPromise = null;
+
+function shuffleImageCandidates(items) {
+  const copy = items.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+async function getCuratedImagePool() {
+  if (!imagePoolPromise) {
+    imagePoolPromise = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+      try {
+        const res = await fetch("/image-pool.json", { cache: "force-cache", signal: controller.signal });
+        if (!res.ok) throw new Error("Image pool unavailable");
+        const data = await res.json();
+        if (data.host !== "https://i.pinimg.com/" || !data.categories) throw new Error("Image pool format invalid");
+        const entries = [];
+        for (const [category, label] of Object.entries(IMAGE_POOL_CATEGORIES)) {
+          const rows = data.categories[category];
+          if (!Array.isArray(rows)) continue;
+          for (const path of rows) {
+            if (typeof path !== "string" || !/^(originals|736x|564x|474x|280x280_RS|236x)\/[a-zA-Z0-9_/%.-]+\.(?:jpe?g|png|gif|webp)$/i.test(path)) continue;
+            entries.push({ url: data.host + path, label });
+          }
+        }
+        return entries;
+      } finally {
+        clearTimeout(timeout);
+      }
+    })().catch(() => []);
+  }
+  return imagePoolPromise;
+}
+
+function preloadCuratedImage(url) {
+  return new Promise(resolve => {
+    const image = new Image();
+    let completed = false;
+    const finish = ok => {
+      if (completed) return;
+      completed = true;
+      clearTimeout(timer);
+      image.onload = image.onerror = null;
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), 1800);
+    image.onload = () => finish(image.naturalWidth > 0);
+    image.onerror = () => finish(false);
+    image.referrerPolicy = "no-referrer";
+    image.src = url;
+  });
+}
+
+async function attachCuratedRandomImage(data) {
+  const pool = await getCuratedImagePool();
+  if (!pool.length) return false;
+
+  let recent = [];
+  try {
+    const stored = JSON.parse(sessionStorage.getItem("nexoraRecentRandomImages") || "[]");
+    if (Array.isArray(stored)) recent = stored.filter(x => typeof x === "string").slice(-30);
+  } catch {}
+  const recentSet = new Set(recent);
+  const fresh = pool.filter(x => !recentSet.has(x.url));
+  const candidates = shuffleImageCandidates(fresh.length ? fresh : pool);
+
+  for (const item of candidates.slice(0, 4)) {
+    if (!await preloadCuratedImage(item.url)) continue;
+    data.image = item.url;
+    data.title = "Random Image • " + item.label;
+    data.artist = "NEXORA Image Pool";
+    data.memePost = "";
+    try {
+      sessionStorage.setItem("nexoraRecentRandomImages", JSON.stringify([...recent, item.url].slice(-30)));
+    } catch {}
+    return true;
+  }
+  return false;
+}
+
 async function attachRandomMeme(data) {
+  if (await attachCuratedRandomImage(data)) return data;
+
   const subreddits = ["memes", "wholesomememes", "me_irl"];
   const shuffled = subreddits.sort(() => Math.random() - 0.5);
 
@@ -1678,6 +1904,198 @@ async function attachRandomMeme(data) {
   return data;
 }
 
+const WAIFU_RECENT_KEY = "gachaWaifuRecentV4";
+const WAIFU_LAST_PROVIDER_KEY = "gachaWaifuLastProviderV1";
+const WAIFU_RECENT_MAX = 64;
+
+function shuffled(list) {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function recentWaifuUrls() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(WAIFU_RECENT_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.slice(-WAIFU_RECENT_MAX) : [];
+  } catch { return []; }
+}
+
+function rememberWaifu(url, provider) {
+  if (!url) return;
+  try {
+    const next = recentWaifuUrls().filter(x => x !== url);
+    next.push(url);
+    localStorage.setItem(WAIFU_RECENT_KEY, JSON.stringify(next.slice(-WAIFU_RECENT_MAX)));
+    if (provider) localStorage.setItem(WAIFU_LAST_PROVIDER_KEY, provider);
+  } catch {}
+}
+
+async function fetchJsonWithTimeout(url, timeout = 4200) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+      cache: "no-store"
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function waifuFromNekosia() {
+  const categories = [
+    "random", "maid", "vtuber", "catgirl", "foxgirl", "wolfgirl",
+    "long-hair", "white-hair", "blue-hair", "blonde", "black-hair",
+    "black-tights", "thigh-high-socks", "headphones"
+  ];
+  const category = categories[Math.floor(Math.random() * categories.length)];
+  const endpoint = "https://api.nekosia.cat/api/v1/images/" + encodeURIComponent(category)
+    + "?rating=suggestive"
+    + "&blacklistedTags=young-girl%2Cschoolgirl"
+    + "&session=id&id=" + encodeURIComponent(playerId);
+  const d = await fetchJsonWithTimeout(endpoint);
+  const image = d?.image?.compressed?.url || d?.image?.original?.url;
+  if (!image) throw new Error("Nekosia image missing");
+  return {
+    image,
+    title: "Anime Girl • " + category.replaceAll("-", " "),
+    artist: d?.attribution?.artist?.username || "Nekosia",
+    source: d?.source?.url || null,
+    provider: "Nekosia",
+    rating: d?.rating || "suggestive"
+  };
+}
+
+async function waifuFromNekosBest() {
+  const categories = ["waifu", "neko", "kitsune"];
+  const category = categories[Math.floor(Math.random() * categories.length)];
+  const d = await fetchJsonWithTimeout("https://nekos.best/api/v2/" + category);
+  const item = Array.isArray(d?.results) ? d.results[0] : null;
+  if (!item?.url) throw new Error("NekosBest image missing");
+  return {
+    image: item.url,
+    title: "Anime Girl • " + category,
+    artist: item.artist_name || "Nekos.best",
+    source: item.source_url || null,
+    provider: "Nekos.best",
+    rating: "safe"
+  };
+}
+
+async function waifuFromWaifuPics() {
+  const category = Math.random() < 0.5 ? "waifu" : "neko";
+  const d = await fetchJsonWithTimeout("https://api.waifu.pics/sfw/" + category);
+  if (!d?.url) throw new Error("Waifu.pics image missing");
+  return {
+    image: d.url,
+    title: "Anime Girl • " + category,
+    artist: "Waifu.pics",
+    source: null,
+    provider: "Waifu.pics",
+    rating: "safe"
+  };
+}
+
+async function waifuFromNekosApi() {
+  const endpoint = "https://api.nekosapi.com/v4/images/random?limit=1&rating=safe&without_tags=young-girl%2Cschoolgirl";
+  const d = await fetchJsonWithTimeout(endpoint);
+  const item = Array.isArray(d) ? d[0]
+    : Array.isArray(d?.data) ? d.data[0]
+    : Array.isArray(d?.items) ? d.items[0]
+    : d?.data || d;
+  const attrs = item?.attributes || item || {};
+  const image = attrs.file || attrs.url || attrs.original || attrs.image_url || attrs.imageUrl;
+  if (!image) throw new Error("Nekos API image missing");
+  return {
+    image,
+    title: "Anime Girl • Nekos API",
+    artist: attrs.artist || attrs.artist_name || "Nekos API",
+    source: attrs.source || attrs.source_url || null,
+    provider: "Nekos API",
+    rating: attrs.rating || "safe"
+  };
+}
+
+async function waifuFromNekosMoe() {
+  const d = await fetchJsonWithTimeout("https://nekos.moe/api/v1/random/image?nsfw=false");
+  const item = Array.isArray(d?.images) ? d.images[0] : null;
+  if (!item?.id || item?.nsfw === true) throw new Error("Nekos.moe image missing");
+  return {
+    image: "https://nekos.moe/image/" + encodeURIComponent(item.id) + ".jpg",
+    title: "Anime Girl • nekos.moe",
+    artist: item.artist || "nekos.moe",
+    source: "https://nekos.moe/post/" + encodeURIComponent(item.id),
+    provider: "Nekos.moe",
+    rating: "safe"
+  };
+}
+
+async function waifuFromNekosLife() {
+  const categories = ["neko", "fox_girl"];
+  const category = categories[Math.floor(Math.random() * categories.length)];
+  const d = await fetchJsonWithTimeout("https://nekos.life/api/v2/img/" + category);
+  if (!d?.url) throw new Error("Nekos.life image missing");
+  return {
+    image: d.url,
+    title: "Anime Girl • " + category.replaceAll("_", " "),
+    artist: "Nekos.life",
+    source: null,
+    provider: "Nekos.life",
+    rating: "safe"
+  };
+}
+
+function waifuFallbackDataUri() {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="900" viewBox="0 0 720 900"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd7ec"/><stop offset="1" stop-color="#d8c7ff"/></linearGradient></defs><rect width="720" height="900" fill="url(#g)"/><text x="360" y="390" text-anchor="middle" font-size="150">💖</text><text x="360" y="545" text-anchor="middle" fill="#472415" font-family="Arial" font-size="42" font-weight="900">WAIFU PROVIDERS OFFLINE</text><text x="360" y="605" text-anchor="middle" fill="#6e422d" font-family="Arial" font-size="25">6 provider sudah dicoba</text></svg>';
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
+async function attachRandomWaifu(data) {
+  const entries = [
+    { name: "Nekosia", fn: waifuFromNekosia },
+    { name: "Nekos.best", fn: waifuFromNekosBest },
+    { name: "Waifu.pics", fn: waifuFromWaifuPics },
+    { name: "Nekos API", fn: waifuFromNekosApi },
+    { name: "Nekos.moe", fn: waifuFromNekosMoe },
+    { name: "Nekos.life", fn: waifuFromNekosLife }
+  ];
+  const recent = new Set(recentWaifuUrls());
+  let lastProvider = "";
+  try { lastProvider = localStorage.getItem(WAIFU_LAST_PROVIDER_KEY) || ""; } catch {}
+
+  // Randomize providers, but push the last successful provider to the back.
+  const providers = shuffled(entries).sort((a, b) => Number(a.name === lastProvider) - Number(b.name === lastProvider));
+
+  // Up to two rounds. Duplicate URLs are rejected when the provider exposes a stable URL.
+  for (let round = 0; round < 2; round++) {
+    for (const provider of providers) {
+      try {
+        const result = await provider.fn();
+        if (!result?.image || recent.has(result.image)) continue;
+        Object.assign(data, result);
+        rememberWaifu(result.image, result.provider || provider.name);
+        return data;
+      } catch (_) {
+        // Browser handles provider failure/CORS/rate-limit by trying the next one.
+      }
+    }
+  }
+
+  data.image = waifuFallbackDataUri();
+  data.title = "Anime Girl — provider offline";
+  data.artist = "Browser fallback";
+  data.provider = "fallback";
+  return data;
+}
+
 async function finishCatch(t) {
   toys = toys.filter(v => v.id !== t.id);
   t.el.style.left = "14px";
@@ -1687,8 +2105,6 @@ async function finishCatch(t) {
   setTimeout(() => t.el.remove(), 350);
   spawnToy(500);
 
-  wins++;
-  winsEl.textContent = wins;
   showLoading();
 
   try {
@@ -1698,8 +2114,22 @@ async function finishCatch(t) {
       body: JSON.stringify({ playerId })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Roll gagal");
+    if (!res.ok) {
+      if (res.status === 429 && data.error === "GACHA_LIMIT_REACHED") {
+        updateChanceUI(data);
+        showReward({
+          type: "limit", tier: "0 LEFT", title: "LIMIT REACHED",
+          message: "Kamu sudah memakai 5 kesempatan gacha dalam 24 jam. Cek hitung mundur reset."
+        });
+        return;
+      }
+      throw new Error(data.error || data.message || "Roll gagal");
+    }
+    updateChanceUI(data);
     if (data.type === "random") await attachRandomMeme(data);
+    if (data.type === "waifu") await attachRandomWaifu(data);
+    wins++;
+    winsEl.textContent = wins;
     showReward(data);
     addHistory(data);
   } catch (err) {
@@ -1771,7 +2201,7 @@ function showReward(r) {
       </div>
     `;
     badges = `
-      <span class="tier badge-account">👑 JACKPOT • ${esc(r.tier || "5%")}</span>
+      <span class="tier badge-account">👑 JACKPOT • ${esc(r.tier || "0.1%")}</span>
       <span class="tier badge-account">ACCOUNT REWARD</span>
     `;
     body = `
@@ -1818,7 +2248,7 @@ function showReward(r) {
     `;
   } else if (r.image) {
     headerLabel = "YOU GOT!";
-    badges = `<span class="tier badge-random">😂 MEME • ${esc(r.tier || "40%")}</span>`;
+    badges = `<span class="tier badge-random">${r.artist === "NEXORA Image Pool" ? "🎲 RANDOM IMAGE" : "😂 MEME"} • ${esc(r.tier || "40%")}</span>`;
     body = `
       <h2>${esc(r.title || "Random Meme")}</h2>
       <div class="reward-img-wrap">
@@ -1830,7 +2260,7 @@ function showReward(r) {
   } else {
     headerLabel = type === "account-empty" ? "JACKPOT SLOT!" : "INFO";
     if (type === "account-empty") {
-      badges = `<span class="tier badge-account">👑 JACKPOT • 5%</span>`;
+      badges = `<span class="tier badge-account">👑 ULTRA JACKPOT • 0.1%</span>`;
     }
     body = `
       <div class="zonkicon">🎟️</div>
@@ -1886,6 +2316,7 @@ window.addEventListener("resize", () => {
 
 setX(x);
 setTimeout(initToys, 80);
+loadGachaStatus();
 </script>
 </body>
 </html>
