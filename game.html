@@ -1363,7 +1363,7 @@ body::before {
           </div>
           <div class="odd-card odd-random">
             <div class="odd-top">
-              <span class="odd-name">😂 Meme</span>
+              <span class="odd-name">🎲 Random Image</span>
               <b class="odd-pct">40%</b>
             </div>
             <div class="odd-bar"><div class="odd-fill"></div></div>
@@ -1637,7 +1637,98 @@ function memeFallbackDataUri() {
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
 
+
+const IMAGE_POOL_CATEGORIES = Object.freeze({
+  cat: "Kucing", doggo: "Anjing", car: "Mobil", bike: "Motor", aesthetic: "Aesthetic"
+});
+let imagePoolPromise = null;
+
+function shuffleImageCandidates(items) {
+  const copy = items.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+async function getCuratedImagePool() {
+  if (!imagePoolPromise) {
+    imagePoolPromise = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+      try {
+        const res = await fetch("/image-pool.json", { cache: "force-cache", signal: controller.signal });
+        if (!res.ok) throw new Error("Image pool unavailable");
+        const data = await res.json();
+        if (data.host !== "https://i.pinimg.com/" || !data.categories) throw new Error("Image pool format invalid");
+        const entries = [];
+        for (const [category, label] of Object.entries(IMAGE_POOL_CATEGORIES)) {
+          const rows = data.categories[category];
+          if (!Array.isArray(rows)) continue;
+          for (const path of rows) {
+            if (typeof path !== "string" || !/^(originals|736x|564x|474x|280x280_RS|236x)\/[a-zA-Z0-9_/%.-]+\.(?:jpe?g|png|gif|webp)$/i.test(path)) continue;
+            entries.push({ url: data.host + path, label });
+          }
+        }
+        return entries;
+      } finally {
+        clearTimeout(timeout);
+      }
+    })().catch(() => []);
+  }
+  return imagePoolPromise;
+}
+
+function preloadCuratedImage(url) {
+  return new Promise(resolve => {
+    const image = new Image();
+    let completed = false;
+    const finish = ok => {
+      if (completed) return;
+      completed = true;
+      clearTimeout(timer);
+      image.onload = image.onerror = null;
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), 1800);
+    image.onload = () => finish(image.naturalWidth > 0);
+    image.onerror = () => finish(false);
+    image.referrerPolicy = "no-referrer";
+    image.src = url;
+  });
+}
+
+async function attachCuratedRandomImage(data) {
+  const pool = await getCuratedImagePool();
+  if (!pool.length) return false;
+
+  let recent = [];
+  try {
+    const stored = JSON.parse(sessionStorage.getItem("nexoraRecentRandomImages") || "[]");
+    if (Array.isArray(stored)) recent = stored.filter(x => typeof x === "string").slice(-30);
+  } catch {}
+  const recentSet = new Set(recent);
+  const fresh = pool.filter(x => !recentSet.has(x.url));
+  const candidates = shuffleImageCandidates(fresh.length ? fresh : pool);
+
+  for (const item of candidates.slice(0, 4)) {
+    if (!await preloadCuratedImage(item.url)) continue;
+    data.image = item.url;
+    data.title = "Random Image • " + item.label;
+    data.artist = "NEXORA Image Pool";
+    data.memePost = "";
+    try {
+      sessionStorage.setItem("nexoraRecentRandomImages", JSON.stringify([...recent, item.url].slice(-30)));
+    } catch {}
+    return true;
+  }
+  return false;
+}
+
 async function attachRandomMeme(data) {
+  if (await attachCuratedRandomImage(data)) return data;
+
   const subreddits = ["memes", "wholesomememes", "me_irl"];
   const shuffled = subreddits.sort(() => Math.random() - 0.5);
 
@@ -1818,7 +1909,7 @@ function showReward(r) {
     `;
   } else if (r.image) {
     headerLabel = "YOU GOT!";
-    badges = `<span class="tier badge-random">😂 MEME • ${esc(r.tier || "40%")}</span>`;
+    badges = `<span class="tier badge-random">${r.artist === "NEXORA Image Pool" ? "🎲 RANDOM IMAGE" : "😂 MEME"} • ${esc(r.tier || "40%")}</span>`;
     body = `
       <h2>${esc(r.title || "Random Meme")}</h2>
       <div class="reward-img-wrap">
