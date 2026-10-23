@@ -23,7 +23,7 @@ The browser shuffles providers, avoids using the last successful provider first,
 
 ## JSON image pool (random image tier, 40%)
 
-The public-facing game fetches `/image-pool.json` only after a successful catch hits the server-selected `random` reward tier. The tier's odds remain **40%**; this does not modify jackpot probability, reward claims, or the 5-roll/24-hour limit.
+The public-facing game fetches `/image-pool.json` only after a successful catch hits the server-selected `random` reward tier. The tier's odds remain **40%**; this does not modify jackpot probability, reward claims, or the 25-roll/18-hour limit.
 
 - `public/image-pool.json` currently contains **2,753 unique HTTPS image URLs** from **27 public-oriented categories**, plus an empty `meme` category ready for additions.
 - The catalog is expanded from the uploaded ZIP. Explicit sexual categories, categories with potential child-sexualization, videos, suspicious hosts, and malformed `random.json` were excluded.
@@ -34,7 +34,7 @@ The public-facing game fetches `/image-pool.json` only after a successful catch 
 - Third-party image availability, user rights and appropriateness cannot be established from URL lists alone. Manually review images and obtain rights before publicly displaying or monetizing them.
 
 ## Casual per-IP/browser limit
-Maximum **5 successful gacha rolls in a rolling 24-hour window per IP/browser**. Missed claw drops do not consume a chance. Each roll expires independently 24 hours after it succeeds, so chances return gradually instead of staying permanently blocked. Changing browsers on the same IP does not reset the server's IP counter. The UI reads `/api/gacha/status`, including `resetAt`, and the server returns HTTP 429 when blocked.
+Maximum **25 successful gacha rolls in a rolling 18-hour window per IP/browser**. Missed claw drops do not consume a chance. Each roll expires independently 18 hours after it succeeds, so chances return gradually instead of staying permanently blocked. Changing browsers on the same IP does not reset the server's IP counter. The UI reads `/api/gacha/status`, including `resetAt`, and the server returns HTTP 429 when blocked.
 
 Raw IP addresses are not stored by the game code. An HMAC hash plus a signed browser device cookie is used for the casual limit.
 
