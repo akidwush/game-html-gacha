@@ -59,8 +59,8 @@ replaceOnce(
   </div>
   <div class="chance-strip is-checking" id="chanceStrip" aria-live="polite">
     <span aria-hidden="true">🎟️</span> CHANCES
-    <strong class="chance-count" id="chances">…/5</strong>
-    <span id="chanceReset">per 24 jam • IP/browser</span>
+    <strong class="chance-count" id="chances">…/25</strong>
+    <span id="chanceReset">per 18 jam • IP/browser</span>
   </div>`
 );
 
@@ -113,14 +113,13 @@ replaceOnce(
   "chance state",
   `let toys = [], busy = false, x = 0.52, wins = 0;`,
   `let toys = [], busy = false, x = 0.52, wins = 0;
-let gachaRemaining = 5, gachaLimit = 5, limitReached = false, gachaReady = false;
+let gachaRemaining = 25, gachaLimit = 25, limitReached = false, gachaReady = false;
 let gachaResetAt = null;
 let cachedRemaining = null;
 try {
-  const cached = Number(localStorage.getItem("gachaRemainingV2"));
-  const cachedLimit = Number(localStorage.getItem("gachaLimitV2"));
-  if (Number.isFinite(cached) && cached >= 0 && cached <= 5) cachedRemaining = cached;
-  if (Number.isFinite(cachedLimit) && cachedLimit > 0) gachaLimit = cachedLimit;
+  const cachedRaw = localStorage.getItem("gachaRemainingV3");
+  const cached = cachedRaw === null ? NaN : Number(cachedRaw);
+  if (Number.isInteger(cached) && cached >= 0 && cached <= 25) cachedRemaining = cached;
 } catch {}
 if (cachedRemaining !== null) {
   gachaRemaining = cachedRemaining;
@@ -144,7 +143,7 @@ replaceOnce(
 function renderResetCountdown() {
   if (!resetEl) return;
   if (!limitReached || !gachaResetAt) {
-    resetEl.textContent = "per 24 jam • IP/browser";
+    resetEl.textContent = "per 18 jam • IP/browser";
     return;
   }
   const ms = Date.parse(gachaResetAt) - Date.now();
@@ -165,8 +164,8 @@ function updateChanceUI(status = {}) {
   renderResetCountdown();
   gachaReady = true;
   try {
-    localStorage.setItem("gachaRemainingV2", String(gachaRemaining));
-    localStorage.setItem("gachaLimitV2", String(gachaLimit));
+    localStorage.setItem("gachaRemainingV3", String(gachaRemaining));
+    localStorage.setItem("gachaLimitV3", String(gachaLimit));
   } catch {}
   if (chancesEl) chancesEl.textContent = gachaRemaining + "/" + gachaLimit;
   if (chanceStrip) {
@@ -174,7 +173,7 @@ function updateChanceUI(status = {}) {
     chanceStrip.classList.toggle("is-empty", limitReached);
   }
   if (drop) drop.disabled = busy || limitReached || !gachaReady;
-  if (limitReached) setStatus("Limit 5 gacha dalam 24 jam habis. Kesempatan akan kembali otomatis.");
+  if (limitReached) setStatus("Limit 25 gacha dalam 18 jam habis. Kesempatan akan kembali otomatis.");
 }
 
 setInterval(() => {
@@ -238,8 +237,8 @@ replaceOnce(
     return;
   }
   if (limitReached) {
-    notify("5 kesempatan gacha untuk IP/browser ini sudah habis.");
-    setStatus("Limit reached — 5 kesempatan gacha untuk IP/browser ini sudah habis.");
+    notify("25 kesempatan gacha dalam 18 jam untuk IP/browser ini sudah habis.");
+    setStatus("Limit reached — 25 kesempatan gacha dalam 18 jam untuk IP/browser ini sudah habis.");
     return;
   }
   if (busy) return;`
@@ -249,7 +248,7 @@ replaceOnce(
   "post drop status",
   `  setStatus("Move the claw & catch a capsule!");
   disable(false);`,
-  `  if (limitReached) setStatus("Limit reached — 5 kesempatan gacha untuk IP/browser ini sudah habis.");
+  `  if (limitReached) setStatus("Limit reached — 25 kesempatan gacha dalam 18 jam untuk IP/browser ini sudah habis.");
   else setStatus("Move the claw & catch a capsule!");
   disable(false);`
 );
@@ -473,7 +472,7 @@ replaceOnce(
         updateChanceUI(data);
         showReward({
           type: "limit", tier: "0 LEFT", title: "LIMIT REACHED",
-          message: "Kamu sudah memakai 5 kesempatan gacha dalam 24 jam. Cek hitung mundur reset."
+          message: "Kamu sudah memakai 25 kesempatan gacha dalam 18 jam. Cek hitung mundur reset."
         });
         return;
       }
