@@ -1639,7 +1639,34 @@ function memeFallbackDataUri() {
 
 
 const IMAGE_POOL_CATEGORIES = Object.freeze({
-  cat: "Kucing", doggo: "Anjing", car: "Mobil", bike: "Motor", aesthetic: "Aesthetic"
+  aesthetic: "Aesthetic",
+  antiwork: "Meme Antiwork",
+  bike: "Motor",
+  blackpink: "BLACKPINK",
+  boneka: "Boneka",
+  car: "Mobil",
+  cat: "Kucing",
+  cosplay: "Cosplay",
+  doggo: "Anjing",
+  eba: "EBA",
+  husbu: "Husbu",
+  justina: "Justina",
+  kayes: "Kayes",
+  kpop: "K-Pop",
+  neko: "Neko",
+  neko2: "Neko 2",
+  notnot: "Notnot",
+  ppcouple: "Foto Pasangan",
+  profile: "Foto Profil",
+  pubg: "PUBG",
+  rose: "Rosé",
+  ryujin: "Ryujin",
+  ulzzangboy: "Ulzzang Boy",
+  ulzzanggirl: "Ulzzang Girl",
+  waifu: "Waifu",
+  wallhp: "Wallpaper HP",
+  wallml: "Wallpaper ML",
+  meme: "Meme"
 });
 let imagePoolPromise = null;
 
@@ -1661,14 +1688,22 @@ async function getCuratedImagePool() {
         const res = await fetch("/image-pool.json", { cache: "force-cache", signal: controller.signal });
         if (!res.ok) throw new Error("Image pool unavailable");
         const data = await res.json();
-        if (data.host !== "https://i.pinimg.com/" || !data.categories) throw new Error("Image pool format invalid");
+        if (!data.categories || typeof data.categories !== "object") throw new Error("Image pool format invalid");
         const entries = [];
         for (const [category, label] of Object.entries(IMAGE_POOL_CATEGORIES)) {
           const rows = data.categories[category];
           if (!Array.isArray(rows)) continue;
-          for (const path of rows) {
-            if (typeof path !== "string" || !/^(originals|736x|564x|474x|280x280_RS|236x)\/[a-zA-Z0-9_/%.-]+\.(?:jpe?g|png|gif|webp)$/i.test(path)) continue;
-            entries.push({ url: data.host + path, label });
+          for (const row of rows) {
+            const path = typeof row === "string" ? row : row?.url;
+            if (typeof path !== "string" || !path.trim()) continue;
+            try {
+              // Supports legacy Pinterest-relative paths and new full HTTPS URLs.
+              const url = new URL(path, "https://i.pinimg.com/");
+              if (url.protocol !== "https:") continue;
+              if (!["i.pinimg.com", "i.redd.it", "i.imgur.com"].includes(url.hostname)) continue;
+              if (!/\.(?:jpe?g|png|gif|webp)$/i.test(url.pathname)) continue;
+              entries.push({ url: url.href, label });
+            } catch { /* Invalid or disallowed URL; skip it. */ }
           }
         }
         return entries;
