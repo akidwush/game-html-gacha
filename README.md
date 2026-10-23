@@ -21,6 +21,16 @@ The 15% anime tier is selected server-side, but image fetching/failover happens 
 
 The browser shuffles providers, avoids using the last successful provider first, remembers up to 64 recent image URLs, and automatically fails over when a provider is unavailable/CORS-blocked/rate-limited.
 
+## JSON image pool (random image tier, 40%)
+
+The browser-side `/game.html` UI loads `/image-pool.json` only when a successful claw catch receives the `random` tier. The random tier's probability is still **40%**; this changes only the image source, not the reward RNG, jackpot odds or 5-roll/24-hour limit.
+
+- The committed `public/image-pool.json` is a curated **100-URL sample**, drawn from 5 categories: `cat`, `doggo`, `car`, `bike`, `aesthetic`. Other uploaded categories (especially explicit/unsafe material) are intentionally excluded.
+- Data schema: `{ "version": 1, "host": "https://i.pinimg.com/", "categories": { "cat": ["path.jpg"], ... } }`. Entries are sanitized and loaded directly from Pinterest by the visitor's browser (no proxy or image downloading by Netlify Functions).
+- Selection uses a browser-session recent-history list to reduce immediate repeats, and preloads up to 4 candidate images. Unavailable links fall back to the existing SFW meme-provider routine, then to an inline fallback SVG.
+- The original ZIP's complete data is **not** committed. A locally generated expanded 600-URL, same-schema dataset can replace `public/image-pool.json` when reviewed/approved for use.
+- Links have not been verified for availability or re-use licenses. Pinterest images may expire, reject hotlinks, or require permission to redistribute; check the image content and rights before public/commercial deployment.
+
 ## Casual per-IP/browser limit
 Maximum **5 successful gacha rolls in a rolling 24-hour window per IP/browser**. Missed claw drops do not consume a chance. Each roll expires independently 24 hours after it succeeds, so chances return gradually instead of staying permanently blocked. Changing browsers on the same IP does not reset the server's IP counter. The UI reads `/api/gacha/status`, including `resetAt`, and the server returns HTTP 429 when blocked.
 
